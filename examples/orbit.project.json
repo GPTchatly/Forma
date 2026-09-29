@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "name": "Orbit website",
+  "family": "saas",
+  "brief": "Brand: \"Orbit\" Headline: \"Less noise. More possibility.\" A dark modern SaaS landing page with a centered hero, bento features, pricing, FAQ, contact and CTA. No animation.",
+  "brand": {
+    "name": "Orbit",
+    "tagline": "Thoughtful ideas, made tangible.",
+    "email": "",
+    "cta": "Let’s talk",
+    "href": "#contact",
+    "language": "en"
+  },
+  "theme": {
+    "palette": "midnight",
+    "font": "modern",
+    "density": "balanced",
+    "radius": "soft",
+    "motion": "none"
+  },
+  "sections": [
+    {
+      "id": "navigation",
+      "block": "nav-minimal",
+      "group": "navigation",
+      "eyebrow": "",
+      "title": "Navigation",
+      "body": "",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "hero",
+      "block": "hero-centered",
+      "group": "hero",
+      "eyebrow": "A considered approach",
+      "title": "Less noise. More possibility.",
+      "body": "Introduce what you do, who you do it for, and what makes your approach different.",
+      "button": "Explore more",
+      "href": "#contact",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "features",
+      "block": "features-bento",
+      "group": "features",
+      "eyebrow": "The essentials",
+      "title": "Thoughtfully made. Simply useful.",
+      "body": "Make your most important benefits clear at a glance.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "A clear starting point",
+          "body": "Describe the first meaningful benefit for your visitors.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Built around you",
+          "body": "Explain how your offering fits the people you serve.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Every detail matters",
+          "body": "Share one concrete difference in your approach.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "pricing",
+      "block": "pricing-cards",
+      "group": "pricing",
+      "eyebrow": "Your options",
+      "title": "Find the right starting point.",
+      "body": "Add your actual prices and plan details before publishing.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "Essential",
+          "body": "Add included features, one per line.",
+          "meta": "per project",
+          "price": "Ask for a quote",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Complete",
+          "body": "Add included features, one per line.",
+          "meta": "per project",
+          "price": "Ask for a quote",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Custom",
+          "body": "Describe a tailored option.",
+          "meta": "tailored to you",
+          "price": "Let’s talk",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "faq",
+      "block": "faq-accordion",
+      "group": "faq",
+      "eyebrow": "Good questions",
+      "title": "A little more clarity.",
+      "body": "Replace these with real answers for your visitors.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "How do we get started?",
+          "body": "Describe the first step a new customer should take.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "What is included?",
+          "body": "Explain exactly what your offering includes and any limitations.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "How can I ask another question?",
+          "body": "Add your preferred contact method and response expectations.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "contact",
+      "block": "contact-form",
+      "group": "contact",
+      "eyebrow": "Say hello",
+      "title": "Let’s make something good.",
+      "body": "Tell visitors how to reach you. Add a real public contact email in the Brand settings.",
+      "button": "Prepare email",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "cta",
+      "block": "cta-band",
+      "group": "cta",
+      "eyebrow": "The next step",
+      "title": "Ready for a fresh perspective?",
+      "body": "Give your visitors one clear next step.",
+      "button": "Get in touch",
+      "href": "#contact",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "footer",
+      "block": "footer-simple",
+      "group": "footer",
+      "eyebrow": "",
+      "title": "Made with intention.",
+      "body": "Add a short closing thought or your business details.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    }
+  ]
+}

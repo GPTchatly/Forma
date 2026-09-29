@@ -1,0 +1,283 @@
+{
+  "schemaVersion": 1,
+  "name": "Studio North website",
+  "family": "studio",
+  "brief": "Brand: \"Studio North\" Headline: \"Make space for good work.\" A warm ivory editorial design studio site. Serif headings, split hero, gallery, services, process, FAQ and contact. No pricing. No animation.",
+  "brand": {
+    "name": "Studio North",
+    "tagline": "Thoughtful ideas, made tangible.",
+    "email": "",
+    "cta": "Let’s talk",
+    "href": "#contact",
+    "language": "en"
+  },
+  "theme": {
+    "palette": "porcelain",
+    "font": "editorial",
+    "density": "balanced",
+    "radius": "soft",
+    "motion": "none"
+  },
+  "sections": [
+    {
+      "id": "navigation",
+      "block": "nav-minimal",
+      "group": "navigation",
+      "eyebrow": "",
+      "title": "Navigation",
+      "body": "",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "hero",
+      "block": "hero-split",
+      "group": "hero",
+      "eyebrow": "A considered approach",
+      "title": "Make space for good work.",
+      "body": "Introduce what you do, who you do it for, and what makes your approach different.",
+      "button": "Explore more",
+      "href": "#contact",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "features",
+      "block": "features-bento",
+      "group": "features",
+      "eyebrow": "The essentials",
+      "title": "Thoughtfully made. Simply useful.",
+      "body": "Make your most important benefits clear at a glance.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "A clear starting point",
+          "body": "Describe the first meaningful benefit for your visitors.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Built around you",
+          "body": "Explain how your offering fits the people you serve.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Every detail matters",
+          "body": "Share one concrete difference in your approach.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "services",
+      "block": "services-cards",
+      "group": "services",
+      "eyebrow": "What we do",
+      "title": "The right support, at every step.",
+      "body": "Replace these examples with your actual services or offerings.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "Discovery",
+          "body": "Understand the goal and explore the possibilities.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Design",
+          "body": "Turn a clear direction into something tangible.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Delivery",
+          "body": "Bring the details together and plan what comes next.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "gallery",
+      "block": "gallery-grid",
+      "group": "gallery",
+      "eyebrow": "Selected work",
+      "title": "A few things worth a closer look.",
+      "body": "Add your own images, project names and descriptions.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "Project one",
+          "body": "Replace with a description of your work.",
+          "meta": "Project / 01",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Project two",
+          "body": "Replace with a description of your work.",
+          "meta": "Project / 02",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Project three",
+          "body": "Replace with a description of your work.",
+          "meta": "Project / 03",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "process",
+      "block": "process-steps",
+      "group": "process",
+      "eyebrow": "How it works",
+      "title": "From first thought to next chapter.",
+      "body": "",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "Start a conversation",
+          "body": "Share what you have in mind and what matters most.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Find the direction",
+          "body": "Explore the options and agree on a clear approach.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Make it happen",
+          "body": "Bring the plan to life, one thoughtful step at a time.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "faq",
+      "block": "faq-accordion",
+      "group": "faq",
+      "eyebrow": "Good questions",
+      "title": "A little more clarity.",
+      "body": "Replace these with real answers for your visitors.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "How do we get started?",
+          "body": "Describe the first step a new customer should take.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "What is included?",
+          "body": "Explain exactly what your offering includes and any limitations.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "How can I ask another question?",
+          "body": "Add your preferred contact method and response expectations.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "contact",
+      "block": "contact-form",
+      "group": "contact",
+      "eyebrow": "Say hello",
+      "title": "Let’s make something good.",
+      "body": "Tell visitors how to reach you. Add a real public contact email in the Brand settings.",
+      "button": "Prepare email",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "footer",
+      "block": "footer-simple",
+      "group": "footer",
+      "eyebrow": "",
+      "title": "Made with intention.",
+      "body": "Add a short closing thought or your business details.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    }
+  ]
+}

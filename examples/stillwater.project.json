@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 1,
+  "name": "Stillwater website",
+  "family": "hospitality",
+  "brief": "Brand: \"Stillwater\" Headline: \"A slower kind of stay.\" A calm coastal apartment website with sage colors, an editorial hero, photo gallery, about, FAQ and contact. No pricing. No animation.",
+  "brand": {
+    "name": "Stillwater",
+    "tagline": "Thoughtful ideas, made tangible.",
+    "email": "",
+    "cta": "Let’s talk",
+    "href": "#contact",
+    "language": "en"
+  },
+  "theme": {
+    "palette": "sage",
+    "font": "editorial",
+    "density": "balanced",
+    "radius": "soft",
+    "motion": "none"
+  },
+  "sections": [
+    {
+      "id": "navigation",
+      "block": "nav-minimal",
+      "group": "navigation",
+      "eyebrow": "",
+      "title": "Navigation",
+      "body": "",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "hero",
+      "block": "hero-editorial",
+      "group": "hero",
+      "eyebrow": "A considered approach",
+      "title": "A slower kind of stay.",
+      "body": "Introduce what you do, who you do it for, and what makes your approach different.",
+      "button": "Explore more",
+      "href": "#contact",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "features",
+      "block": "features-bento",
+      "group": "features",
+      "eyebrow": "The essentials",
+      "title": "Thoughtfully made. Simply useful.",
+      "body": "Make your most important benefits clear at a glance.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "A clear starting point",
+          "body": "Describe the first meaningful benefit for your visitors.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Built around you",
+          "body": "Explain how your offering fits the people you serve.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Every detail matters",
+          "body": "Share one concrete difference in your approach.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "about",
+      "block": "about-split",
+      "group": "about",
+      "eyebrow": "Our story",
+      "title": "A little about what drives us.",
+      "body": "Tell your story in your own words. Describe your purpose, the people behind the work, and what visitors can expect.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "gallery",
+      "block": "gallery-grid",
+      "group": "gallery",
+      "eyebrow": "Take a look around",
+      "title": "Space to settle in.",
+      "body": "Add your own images, project names and descriptions.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "Your space",
+          "body": "Add a real photo and description.",
+          "meta": "The stay",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "The details",
+          "body": "Add a real photo and description.",
+          "meta": "Inside",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "Around us",
+          "body": "Add a real photo and description.",
+          "meta": "The setting",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "faq",
+      "block": "faq-accordion",
+      "group": "faq",
+      "eyebrow": "Good questions",
+      "title": "A little more clarity.",
+      "body": "Replace these with real answers for your visitors.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [
+        {
+          "title": "How do we get started?",
+          "body": "Describe the first step a new customer should take.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "What is included?",
+          "body": "Explain exactly what your offering includes and any limitations.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        },
+        {
+          "title": "How can I ask another question?",
+          "body": "Add your preferred contact method and response expectations.",
+          "meta": "",
+          "price": "",
+          "image": "",
+          "alt": ""
+        }
+      ],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "contact",
+      "block": "contact-form",
+      "group": "contact",
+      "eyebrow": "Say hello",
+      "title": "Let’s make something good.",
+      "body": "Tell visitors how to reach you. Add a real public contact email in the Brand settings.",
+      "button": "Prepare email",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    },
+    {
+      "id": "footer",
+      "block": "footer-simple",
+      "group": "footer",
+      "eyebrow": "",
+      "title": "Made with intention.",
+      "body": "Add a short closing thought or your business details.",
+      "button": "",
+      "href": "",
+      "image": "",
+      "alt": "",
+      "items": [],
+      "locked": false,
+      "draft": true
+    }
+  ]
+}
