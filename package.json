@@ -1,0 +1,24 @@
+{
+  "name": "Forma",
+  "version": "0.2.0",
+  
+  "type": "module",
+  "description": "A local-first website builder aided by JEV classifier",
+  "author": "GPTchatly",
+  "engines": {
+    "node": ">=18.17.0 <19 || >=20.3.0"
+  },
+  "scripts": {
+    "start": "node server/index.mjs --open",
+    "dev": "node --watch server/index.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build-hosted.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "release:source": "node scripts/release-source.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "zod": "4.6.5"
+  }
+}
