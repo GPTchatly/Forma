@@ -1,5 +1,7 @@
 # Forma - JEV-aided Website Site Studio
 
+Free (with limits) hosted <a href="https://forma.gptchatly.com/">Forma Editor</a>
+
 A local-first website and application UI builder aided by JEV-classifier. Describe a website or
 frontend; JEV selects its design settings, component variants, typed fields and
 panels, internal UI elements and section order. Edit the result, save projects,
