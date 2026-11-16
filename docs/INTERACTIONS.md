@@ -47,7 +47,7 @@ All new blocks use the existing content, item identity, removal, placement, imag
 lock, history and page contracts. Gallery image resizing and alternative text
 remain authored project data. Data still passes the same allowlisted schema and
 escaped renderer. There is no generated script or new endpoint. Runtime assets
-are concatenated and normalized identically in local preview and
+are concatenated and normalized identically in local preview, hosted preview and
 every export; the fixed CSP hash covers all three runtime sources.
 
 Existing version-1 project files load with defaults for missing interaction fields.
@@ -59,7 +59,7 @@ backward import into those older releases is not promised.
 
 Every standalone HTML document embeds the complete bundled MIT notices. ZIPs
 also include the notices as separate license files, including Feather's icon
-notice. Local exports use `shared/export.mjs`. This avoids a
+notice. Both local and hosted exports use `shared/export.mjs`. This avoids a
 license or runtime divergence between the two paths.
 
 Source references and hashes are in [INTERACTION-SOURCES.json](INTERACTION-SOURCES.json).

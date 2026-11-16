@@ -1,4 +1,4 @@
-/** Portable composition keeps uploaded raster bytes in the browser. The server
+/** Hosted composition keeps uploaded raster bytes in the browser. The server
  * receives only a fixed image-presence marker, never a user image or image URL. */
 import { validateCompose, validateSpec, ValidationError } from './schema.mjs';
 import { HOME_PAGE_ID } from './pages.mjs';
@@ -19,7 +19,7 @@ function visitImages(spec, visit) {
 export function validateTransportImages(rawSpec) {
   const spec = validateSpec(rawSpec);
   visitImages(spec, (owner) => {
-    if (owner.image !== '' && owner.image !== IMAGE_PLACEHOLDER) throw new ValidationError('Portable composition accepts image-presence markers only. Uploaded images must remain in your browser.');
+    if (owner.image !== '' && owner.image !== IMAGE_PLACEHOLDER) throw new ValidationError('Hosted composition accepts image-presence markers only. Uploaded images must remain in your browser.');
   });
   return spec;
 }

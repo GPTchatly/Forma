@@ -4,7 +4,7 @@ Reviewed on September 27, 2026. The local runtime remains dependency-free.
 Hosted installation includes the pinned Zod package described below. No remote
 fonts, photos, runtime CDN assets or paid component packs are bundled.
 
-## Zod 4.6.5 — MIT
+## Zod 4.6.7 — MIT
 
 Zod is used for hosted server request and session validation. `package-lock.json`
 pins the package version and integrity. The source release contains the lockfile;
@@ -80,6 +80,22 @@ or a promise of free provider service. Personal-key requests use the visitor's
 account. See https://docs.typesafe.ai/api,
 https://openrouter.ai/~typesafe/jev-latest and
 https://docs.typesafe.ai/models for the current service contract and pricing.
+
+## Design references without code — November 2026
+
+The family-section and thin-group manifests (`shared/blocks-site.mjs`) are original
+Forma markup and CSS. The reference labels `shadcn-html` and `tailark` and the names
+Basecoat, Untitled UI, assistant-ui, AI Elements and ReUI identify design references
+only: no upstream source was read or copied, so no notice is added. Verify each
+licence before any future extraction.
+
+The AI application set (`shared/blocks-agent.mjs`) is likewise original Forma markup
+and CSS. GradientDeck (reference label `gradientdeck`) is a design reference only: it
+publishes no licence, and nothing was copied or adapted from it.
+
+The page recipes (`shared/design.mjs`), the copy packs (`shared/copy.mjs`), the
+backdrop and heading-layout rules and the compatibility script are original Forma
+work. No third-party text, markup or code was used.
 
 ## Native interaction adaptations — October 11, 2026
 

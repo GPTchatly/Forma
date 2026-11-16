@@ -1,6 +1,8 @@
 /** Authored removable parts. Saved values are finite keys, never selectors or markup. */
 import { interfaceFieldsFor, isInterfaceBlock } from './interfaces.mjs';
 import { EXPANSION_BY_ID, EVIDENCE_GROUPS } from './expansion.mjs';
+import { MANIFEST_BY_ID } from './blocks.mjs';
+import { AGENT_ITEM_PARTS, agentItemType } from './blocks-agent.mjs';
 
 export const PART_LABELS = Object.freeze({
   heading: 'Heading', body: 'Description', eyebrow: 'Eyebrow', action: 'Primary action',
@@ -16,6 +18,12 @@ const buttonParts = ['action', 'buttonLabel', 'buttonIcon'];
 
 /** Match authored renderer paths, which sometimes override an item's saved type. */
 function interfaceItemParts(section, item) {
+  // A manifest screen draws an item of a type outside the agent types as its default type.
+  const manifest = MANIFEST_BY_ID[section.block];
+  if (manifest?.interface) {
+    const agentType = agentItemType(item, manifest.interface.default);
+    return Object.hasOwn(AGENT_ITEM_PARTS, agentType) ? [...AGENT_ITEM_PARTS[agentType]] : [];
+  }
   const fallback = ['app-login', 'app-signup', 'app-settings', 'app-checkout', 'app-editor'].includes(section.block) ? 'text' : 'list';
   const type = item.uiType && item.uiType !== 'default' ? item.uiType : fallback;
   if (section.block === 'app-chat') return ['heading', 'body', 'meta', 'icon', ...(section.items.indexOf(item) < 4 ? buttonParts : [])];
@@ -29,6 +37,7 @@ function interfaceItemParts(section, item) {
     return ['heading', 'body', 'control', ...(type === 'checkbox' ? [] : ['meta'])];
   }
   if (section.block !== 'app-calendar') {
+    if (Object.hasOwn(AGENT_ITEM_PARTS, type)) return [...AGENT_ITEM_PARTS[type]];
     if (type === 'table') return ['heading', 'body', 'meta', 'price', 'icon'];
     if (fieldTypes.includes(type)) return ['heading', 'body', 'control', ...(type === 'checkbox' ? [] : ['meta'])];
     if (type === 'stat') return ['heading', 'body', 'meta', 'price'];
@@ -55,6 +64,9 @@ export function partsFor(section, itemId, t = english) {
   const item = itemId === undefined || itemId === null ? null : section.items?.find((entry) => entry.id === itemId);
   if (itemId !== undefined && itemId !== null && !item) return [];
   const keys = [];
+  const manifest = MANIFEST_BY_ID[section.block];
+  // The items of an application screen take their parts from their type, not the manifest.
+  if (manifest) return (item ? manifest.interface ? interfaceItemParts(section, item) : manifest.parts.item : manifest.parts.section).map((partKey) => ({ partKey, label: t(PART_LABELS[partKey]) }));
   if (EXPANSION_BY_ID[section.block]) {
     const behavior = EXPANSION_BY_ID[section.block].behavior;
     const expanded = item ? ['heading', 'body'] : ['heading', 'body'];

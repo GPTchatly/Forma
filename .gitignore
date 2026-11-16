@@ -1,5 +1,6 @@
 .env*
 !.env.example
+!.env.hosted.example
 .data/
 node_modules/
 dist/

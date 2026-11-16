@@ -1,14 +1,9 @@
 {
-  "name": "forma",
-  "version": "0.2.0",
+  "name": "jev-site-studio",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "A local-first website and application UI builder with bounded JEV design choices.",
-  "author": "GPTchatly <GPTchatly@gmail.com>",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/GPTchatly/Forma.git"
-  },
+  "description": "A local-first website builder with a Vercel BYOK hosting adapter.",
   "engines": {
     "node": ">=22.23.3 <23 || >=24.21.0 <25"
   },
@@ -17,10 +12,12 @@
     "dev": "node --watch server/index.mjs",
     "test": "node --test tests/*.test.mjs",
     "check": "node scripts/check.mjs",
-    "build": "node scripts/release-check.mjs",
+    "build": "node scripts/build-hosted.mjs",
     "release:check": "node scripts/release-check.mjs",
-    "release:history": "node scripts/release-history.mjs",
     "release:source": "node scripts/release-source.mjs"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "zod": "4.6.7"
+  }
 }

@@ -4,6 +4,8 @@ import { escapeHtml as e } from './schema.mjs';
 import { EXPANSION_BY_ID } from './expansion.mjs';
 import { isPartVisible as visible } from './parts.mjs';
 import { icon } from './icons.mjs';
+import { MANIFEST_BY_ID } from './blocks.mjs';
+import { mediaSideFor } from './elements.mjs';
 
 const control = (action, label, attributes = '') => `<button type="button" class="xp-control" data-xp-action="${action}" ${attributes}>${e(label)}</button>`;
 const search = (label = 'Search this collection') => `<label class="xp-search">${e(label)}<input type="search" data-xp-search maxlength="180" placeholder="${e(label)}"></label><p class="xp-empty" data-xp-empty hidden>No matching entries.</p>`;
@@ -34,7 +36,10 @@ export function renderExpansion(s, spec, context, h) {
   const filters = `<div class="xp-controls" aria-label="Categories">${control('filter', 'All', 'data-xp-filter="" aria-pressed="true"')}${groups.map((group) => control('filter', group, `data-xp-filter="${e(group)}" aria-pressed="false"`)).join('')}</div>`;
   const collection = (media = false) => `<div class="xp-collection">${s.items.map((item, index) => card(item, index, media)).join('')}</div>`;
   let body = '';
-  if (s.group === 'navigation') {
+  // A manifest block renders its own body from this kit; the wrapper below stays shared.
+  const manifest = MANIFEST_BY_ID[s.block];
+  if (manifest) body = manifest.render({ s, spec, context, h, e, visible, icon, control, search, status, part, itemAttrs, meta, price, image, copy, card, heading, action, controls, tabs, disclosures, filters, groups, collection });
+  else if (s.group === 'navigation') {
     const brand = visible(s, 'brand') ? `<a class="xp-brand" href="#${e(h.startIdFor(spec))}"${part('brand')}>${e(spec.brand.name)}</a>` : '';
     const links = visible(s, 'navigation') ? navigation(s, spec, context, h) : '';
     if (entry.behavior === 'mega') body = `${brand}<details class="xp-mega"><summary>Explore</summary>${links}</details>${action()}`;
@@ -92,7 +97,11 @@ export function renderExpansion(s, spec, context, h) {
   } else if (s.group === 'contact') {
     if (entry.behavior === 'inquiry') body = `${heading}<div data-xp-inquiry data-xp-email="${e(spec.brand.email)}">${sectionWizard(true)}</div>`;
     else body = `${heading}<div class="xp-contacts">${s.items.map((item, index) => card(item, index, false, item.href ? action(item) : '')).join('')}</div>${action()}`;
-  } else if (s.group === 'cta') body = `${image(s, 0, true)}<div class="xp-cta-copy">${heading}${action()}</div>`;
+  } else if (s.group === 'cta') {
+    // `default` keeps the base order of the image-backed invitation: the image first (mediaDefaultFor).
+    const ctaCopy = `<div class="xp-cta-copy">${heading}${action()}</div>`;
+    body = mediaSideFor(s) === 'after' ? `${ctaCopy}${image(s, 0, true)}` : `${image(s, 0, true)}${ctaCopy}`;
+  }
   else if (s.group === 'faq') {
     if (entry.behavior === 'faq-groups') body = `${heading}${(groups.length ? groups : ['Answers']).map((group) => `<div class="xp-faq-group"><h3>${e(group)}</h3>${disclosures(s.items.filter((item) => !groups.length || item.meta === group))}</div>`).join('')}`;
     else if (entry.behavior === 'faq-sidebar') body = `${heading}<div class="xp-faq-layout"><nav aria-label="Question index">${s.items.map((item, index) => `<a href="#xp-${e(s.id)}-answer-${index}">${e(item.title)}</a>`).join('')}</nav><div>${s.items.map((item, index) => `<div id="xp-${e(s.id)}-answer-${index}">${disclosures([item])}</div>`).join('')}</div></div>`;

@@ -8,6 +8,7 @@ import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {createApp} from '../server/app.mjs';
 import {createSpec,makeSection} from '../shared/content.mjs';
+import {CATALOG} from '../shared/catalog.mjs';
 import {validateSpec} from '../shared/schema.mjs';
 import {EXPANSION_BLOCKS} from '../shared/expansion.mjs';
 import {WIDGETS,makeWidget} from '../shared/widgets.mjs';
@@ -79,7 +80,7 @@ test('expanded components work on mobile, by keyboard, offline and inside the ed
   const frame=editor.frameLocator('#preview-frame');assert.ok(await frame.locator('.features-tabs [data-xp-panel]').last().isVisible(),'Inspect shows every panel');
   await editor.locator('#inspect-button').click();await frame.locator('.features-tabs .xp-tablist button').last().click();assert.equal(await frame.locator('.features-tabs .xp-tablist button').last().getAttribute('aria-selected'),'true');
   await editor.locator('#inspect-button').click();assert.ok(await frame.locator('.features-tabs [data-xp-panel]').first().isVisible());await editor.locator('#inspect-button').click();assert.equal(await frame.locator('.features-tabs .xp-tablist button').last().getAttribute('aria-selected'),'true','Interact restores the selected tab');
-  await editor.locator('[data-left-tab="library"]').click();await editor.locator('[data-library-filter="all"]').click();assert.equal(await editor.locator('#library-list [data-add-block]').count(),105);
+  await editor.locator('[data-left-tab="library"]').click();await editor.locator('[data-library-filter="all"]').click();assert.equal(await editor.locator('#library-list [data-add-block]').count(),CATALOG.length);
   await editor.locator('[data-library-filter="elements"]').click();assert.equal(await editor.locator('[data-add-widget]').count(),24);await editor.locator('[data-preview-widget="range"]').click();await editor.frameLocator('#component-preview-frame').locator('[data-xp-range]').waitFor();await editor.locator('[data-close="component-preview-dialog"]').click();
   await editor.locator('[data-library-filter="styles"]').click();assert.equal(await editor.locator('[data-apply-style]').count(),12);
   await editor.locator('[data-library-filter="examples"]').click();assert.equal(await editor.locator('[data-open-example]').count(),8);

@@ -1,7 +1,7 @@
 /** NEW: Shared runtime validation. Imported projects, model-derived values and API bodies
  * cross the same allowlist. Data is rendered as text, never accepted as executable markup. */
 import { SCHEMA_VERSION, GROUPS, FAMILIES, THEMES, FONTS, DENSITIES, RADII, getBlock } from './catalog.mjs';
-import { TYPE_SCALES, CONTENT_WIDTHS, PRESENTATION, DEFAULT_PRESENTATION } from './design.mjs';
+import { TYPE_SCALES, CONTENT_WIDTHS, PRESENTATION, DEFAULT_PRESENTATION, OPTIONAL_PRESENTATION } from './design.mjs';
 import { HOME_PAGE_ID, MAX_PAGES, parsePageHref } from './pages.mjs';
 import { CONTENT_ICONS } from './icons.mjs';
 import { BUTTON_ICONS } from './ui-catalog.mjs';
@@ -96,7 +96,15 @@ export function validateElements(raw = {}) {
 export function validatePresentation(raw = {}) {
   const value = object(raw, 'Section presentation');
   if (Object.keys(value).some((key) => !Object.hasOwn(PRESENTATION, key))) throw new ValidationError('Unsupported section presentation field.');
-  return Object.fromEntries(Object.entries(PRESENTATION).map(([key, options]) => [key, member(value[key] === undefined ? DEFAULT_PRESENTATION[key] : value[key], Object.keys(options), `section ${key}`)]));
+  // The base keys are always returned. An optional axis is checked when present and returned only
+  // with a non-default value, so a section that does not use it is stored exactly as before.
+  const entries = [];
+  for (const [key, options] of Object.entries(PRESENTATION)) {
+    if (!OPTIONAL_PRESENTATION.includes(key)) { entries.push([key, member(value[key] === undefined ? DEFAULT_PRESENTATION[key] : value[key], Object.keys(options), `section ${key}`)]); continue; }
+    if (value[key] === undefined) continue;
+    if (member(value[key], Object.keys(options), `section ${key}`) !== 'default') entries.push([key, value[key]]);
+  }
+  return Object.fromEntries(entries);
 }
 export function validateInterface(raw = {}) {
   const value = object(raw, 'Application interface');

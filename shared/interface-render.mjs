@@ -4,6 +4,7 @@ import { icon } from './icons.mjs';
 import { INTERFACE_BLOCKS, isInterfaceBlock, interfaceFieldsFor } from './interfaces.mjs';
 import { imageSizeOf } from './media.mjs';
 import { isPartVisible } from './parts.mjs';
+import { AGENT_ITEM_PARTS, agentItem, agentTools } from './blocks-agent.mjs';
 
 const fieldTypes = new Set(['text', 'email', 'password', 'textarea', 'select', 'checkbox', 'number', 'date']);
 const markers = (item, index, context) => context.preview ? ` data-item-id="${e(item.id)}" data-item-index="${index}"` : '';
@@ -174,6 +175,9 @@ function module(section, item, index, context) {
   if (fieldTypes.has(type)) return `<div class="ui-panel">${field(section, item, index, context)}</div>`;
   if (type === 'action') return `<article class="ui-panel ui-action-module" data-ui-search-item${markers(item, index, context)}>${part(item, 'icon', `<span class="ui-list-icon"${partMarkers(item, 'icon', context, true)}>${icon('bolt', 21)}</span>`)}${textPart(item, 'heading', 'h2', item.title, context, '', true)}${textPart(item, 'body', 'p', item.body, context, '', true)}${button(section, item.meta || item.title, { action: 'add-item', owner: item, context })}</article>`;
   if (type === 'form') return part(item, 'form', `<form class="ui-panel ui-form" data-ui-form="generic" data-ui-search-item${markers(item, index, context)}${partMarkers(item, 'form', context, true)}>${textPart(item, 'heading', 'h2', item.title, context, '', true)}${textPart(item, 'body', isPartVisible(item, 'control') ? 'label' : 'p', item.body || 'Your response', context, isPartVisible(item, 'control') ? ` for="ui-${e(item.id)}-input"` : '', true)}${part(item, 'control', `<textarea id="ui-${e(item.id)}-input" name="response" rows="4" maxlength="4000" aria-label="${e(item.body || 'Your response')}" required${partMarkers(item, 'control', context, true)}></textarea>`)}${button(section, item.meta || 'Submit', { type: 'submit', owner: item, context })}${feedback()}</form>`);
+  // An agent item is its own interaction root: this screen has no other, and the fixed runtime
+  // acts on a control and announces only inside one. An approval gets its own status region.
+  if (Object.hasOwn(AGENT_ITEM_PARTS, type)) return `<article class="ui-panel ui-agent-module ui-agent-${type}" data-ui-search-item data-xp-block="agent-item"${markers(item, index, context)}>${agentItem(type, item, index, agentTools(item, { escape: e, visible: isPartVisible, attrs: (key) => partMarkers(item, key, context, true), icon }))}${type === 'approval' ? '<p class="xp-status" role="status" aria-live="polite" data-xp-status></p>' : ''}</article>`;
   return `<div class="ui-panel">${listItem(section, item, index, context)}</div>`;
 }
 

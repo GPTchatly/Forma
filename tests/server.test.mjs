@@ -6,10 +6,13 @@ import { mkdtemp, rm, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createApp } from '../server/app.mjs';
-import { createSpec } from '../shared/content.mjs';
+import { createSpec, makeSection } from '../shared/content.mjs';
+import { validateSpec } from '../shared/schema.mjs';
+import { itemFieldsFor } from '../shared/blocks.mjs';
 import { ProjectStore } from '../server/store.mjs';
 import { demoEvaluate } from '../server/demo.mjs';
 import { OPENROUTER_JEV_ENDPOINT, OPENROUTER_DEFAULT_MODEL } from '../server/jev.mjs';
+import { HOSTED_ASSETS } from '../scripts/build-hosted.mjs';
 async function setup(t, options = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'forma-test-'));
   const app = await createApp({ dataDir: dir, ...options });
@@ -123,4 +126,37 @@ test('manual checkpoint records the supplied current version rather than the old
   const saved = await app.store.update(project.id, { spec: next, expectedRevision: 1, checkpoint: true, checkpointCurrent: true, label: 'Manual checkpoint' });
   const checkpoint = await app.store.history(project.id, saved.history[0].id);
   assert.equal(checkpoint.spec.sections.find((s) => s.group === 'hero').title, 'Visible, newly edited title');
+});
+test('AC-OPS-1 the local server serves every module the editor imports, statically or dynamically', async (t) => {
+  const { call } = await setup(t);
+  // Loaded only when the hosted deployment marker is set; the hosted build ships them instead.
+  const hostedOnly = new Set(['/turnstile.mjs', '/hosted-client.mjs']);
+  const pending = ['/app.mjs'], seen = new Set();
+  while (pending.length) {
+    const pathname = pending.pop();
+    if (seen.has(pathname)) continue;
+    seen.add(pathname);
+    const response = await call(pathname);
+    assert.equal(response.status, 200, pathname);
+    assert.match(response.headers.get('content-type') || '', /javascript/, pathname);
+    const source = await response.text();
+    const specifiers = [...source.matchAll(/^\s*import\s[^;'"]*?(['"])([^'"\n]+)\1/gm), ...source.matchAll(/^\s*export\s[^'"\n]*?\sfrom\s*(['"])([^'"\n]+)\1/gm), ...source.matchAll(/\bimport\(\s*(['"])([^'"\n]+)\1\s*\)/g)].map((match) => match[2]);
+    for (const specifier of specifiers) {
+      const target = new URL(specifier, `http://editor.invalid${pathname}`).pathname;
+      if (hostedOnly.has(target)) assert.ok(HOSTED_ASSETS.some(([, destination]) => `/${destination}` === target), target);
+      else pending.push(target);
+    }
+  }
+  assert.ok(seen.has('/shared/fit.mjs'));
+});
+test('AC-21 declared item fields of manifest blocks survive HTTP save and reopen', async (t) => {
+  const { call } = await setup(t), spec = createSpec();
+  const added = [makeSection('contact', 'contact-hours'), makeSection('services', 'services-menu'), makeSection('process', 'process-schedule')];
+  for (const section of added) for (const [index, item] of section.items.entries()) for (const field of Object.keys(itemFieldsFor(section.block))) item[field] = field === 'href' ? `https://example.com/${section.block}-${index}` : `${section.block} ${field} ${index}`;
+  spec.sections = [...spec.sections.filter((section) => !['contact', 'services', 'process'].includes(section.group) && section.group !== 'footer'), ...added, spec.sections.find((section) => section.group === 'footer')];
+  const expected = validateSpec(spec);
+  const saved = await (await call('/api/projects', 'POST', { spec: expected })).json();
+  const reopened = await (await call(`/api/projects/${saved.id}`)).json();
+  assert.deepEqual(reopened.spec, expected);
+  assert.equal(reopened.spec.sections.find((section) => section.block === 'contact-hours').items[0].price, 'contact-hours price 0');
 });

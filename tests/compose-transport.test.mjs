@@ -32,7 +32,7 @@ test('image-presence marker is an actual bounded raster accepted by the shared s
   assert.equal(inspected.width, 1); assert.equal(inspected.height, 1);
 });
 
-test('portable request strips all uploaded bytes across pages without changing the editable input', () => {
+test('hosted request strips all uploaded bytes across pages without changing the editable input', () => {
   const spec = imageSpec(), original = structuredClone(spec);
   const { request, restore } = prepareComposeRequest(designRequest(spec));
   assert.deepEqual(spec, original);

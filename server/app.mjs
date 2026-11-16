@@ -40,13 +40,14 @@ const staticFiles = new Map([
   ['/', ['public/index.html', 'text/html']], ['/index.html', ['public/index.html', 'text/html']],
   ['/favicon.svg', ['public/favicon.svg', 'image/svg+xml']],
   ['/app.css', ['public/app.css', 'text/css']], ['/app.mjs', ['public/app.mjs', 'text/javascript']],
+  ['/deployment.mjs', ['public/deployment.mjs', 'text/javascript']],
   ['/structure-controls.mjs', ['public/structure-controls.mjs', 'text/javascript']],
   ['/library-drag.mjs', ['public/library-drag.mjs', 'text/javascript']],
   ['/i18n.mjs', ['public/i18n.mjs', 'text/javascript']],
   ...['es', 'pt', 'de', 'it', 'ru', 'pl', 'fi', 'sv'].map((locale) => [`/locales/${locale}.mjs`, [`public/locales/${locale}.mjs`, 'text/javascript']]),
   ['/interaction-runtime.js', ['public/interaction-runtime.js', 'text/javascript']],
   ['/site.css', ['public/site.css', 'text/css']], ['/site-runtime.js', ['public/site-runtime.js', 'text/javascript']],
-  ...['expansion', 'expansion-render', 'styles', 'widgets', 'showcases', 'interactions', 'notices', 'catalog', 'design', 'elements', 'ui-catalog', 'schema', 'raster', 'content', 'icons', 'render', 'pages', 'structure', 'slots', 'media', 'interfaces', 'interface-render', 'parts'].map((name) => [`/shared/${name}.mjs`, [`shared/${name}.mjs`, 'text/javascript']])
+  ...['expansion', 'expansion-render', 'styles', 'widgets', 'showcases', 'interactions', 'notices', 'catalog', 'design', 'elements', 'ui-catalog', 'schema', 'raster', 'content', 'icons', 'render', 'pages', 'structure', 'slots', 'media', 'interfaces', 'interface-render', 'parts', 'fit', 'blocks', 'blocks-site', 'blocks-agent', 'page-css', 'copy'].map((name) => [`/shared/${name}.mjs`, [`shared/${name}.mjs`, 'text/javascript']])
 ]);
 export async function createApp({ dataDir = path.join(ROOT, '.data'), apiKey = '', model = 'jev-1.13.0', provider = '', fetchImpl = fetch, onShutdown = () => {} } = {}) {
   const store = new ProjectStore(path.join(dataDir, 'projects')); await store.init();
@@ -108,7 +109,7 @@ export async function createApp({ dataDir = path.join(ROOT, '.data'), apiKey = '
         activeRequests++; countedRequest = true;
         res.once('finish', releaseRequest); res.once('close', releaseRequest);
       }
-      if (req.method === 'GET' && pathname === '/api/status') { const cfg = currentConfig(); return json(res, 200, { token, configured: Boolean(cfg.apiKey), verified: connected, credentialSource: memoryKey ? 'server memory' : environmentKey ? 'server environment' : 'none', credentialRevision, provider: cfg.provider, model: cfg.model, version: '0.2.0', catalogSize: CATALOG.length }); }
+      if (req.method === 'GET' && pathname === '/api/status') { const cfg = currentConfig(); return json(res, 200, { token, configured: Boolean(cfg.apiKey), verified: connected, credentialSource: memoryKey ? 'server memory' : environmentKey ? 'server environment' : 'none', credentialRevision, provider: cfg.provider, model: cfg.model, version: '0.3.0', catalogSize: CATALOG.length }); }
       if (req.method === 'GET' && pathname === '/api/catalog') return json(res, 200, { catalog: CATALOG, themes: THEMES, fonts: FONTS });
       if (req.method === 'POST' && pathname === '/api/connection') {
         const data = requestObject(await body(req, 4096), ['apiKey', 'provider', 'restore', 'revision']);

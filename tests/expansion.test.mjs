@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG, THEMES, GROUPS } from '../shared/catalog.mjs';
 import { EXPANSION_BLOCKS, ANCHORED_GROUPS } from '../shared/expansion.mjs';
+import { BLOCK_MANIFESTS } from '../shared/blocks.mjs';
 import { STYLE_PRESETS, styleTheme } from '../shared/styles.mjs';
 import { WIDGETS, makeWidget, widgetFields } from '../shared/widgets.mjs';
 import { SHOWCASES, makeShowcase } from '../shared/showcases.mjs';
@@ -17,8 +18,8 @@ import { PNG_IMAGE } from './fixtures/images.mjs';
 const request=(spec,prompt,extra={})=>({spec,prompt,operation:'edit',mode:'demo',locks:{},...extra});
 
 test('expanded inventory counts concrete compositions separately from styles and elements',()=>{
-  assert.equal(CATALOG.length,105);assert.equal(new Set(CATALOG.map(entry=>entry.id)).size,105);
-  assert.equal(EXPANSION_BLOCKS.length,60);assert.equal(Object.keys(WIDGETS).length,24);
+  assert.equal(CATALOG.length,105+BLOCK_MANIFESTS.length);assert.equal(new Set(CATALOG.map(entry=>entry.id)).size,105+BLOCK_MANIFESTS.length);
+  assert.equal(EXPANSION_BLOCKS.length,60+BLOCK_MANIFESTS.length);assert.equal(Object.keys(WIDGETS).length,24);
   assert.equal(Object.keys(STYLE_PRESETS).length,12);assert.equal(Object.keys(THEMES).length,12);
   assert.equal(Object.keys(SHOWCASES).length,8);assert.equal(GROUPS.length,16);
   assert.ok(EXPANSION_BLOCKS.every(entry=>entry.source==='Forma original · MIT'));

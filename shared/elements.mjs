@@ -4,9 +4,10 @@ import { BUTTON_COMPONENTS, BUTTON_LABELS, BUTTON_ICONS, BUTTON_TEXT_STYLES, lib
 import { isInterfaceBlock } from './interfaces.mjs';
 import { INTERACTION_CONTROLS } from './interactions.mjs';
 import { EXPANSION_BY_ID } from './expansion.mjs';
+import { MANIFEST_BY_ID } from './blocks.mjs';
 export const ELEMENT_CONTROLS = {
   ...INTERACTION_CONTROLS,
-  mediaPlacement: { label: 'Image placement', description: 'Place the hero image before or after the content in the actual HTML reading order. Split layouts show it on the left or right; narrow screens stack in the same order.', options: { default: 'After the content', before: 'Before the content', after: 'After the content' }, groups: ['hero'], excludeBlocks: ['hero-centered'] },
+  mediaPlacement: { label: 'Image placement', description: 'Place the image before or after the content in the actual HTML reading order. Split layouts show it on the left or right; narrow screens stack in the same order.', options: { default: 'After the content', before: 'Before the content', after: 'After the content' }, groups: ['hero', 'about'], excludeBlocks: ['hero-centered', 'about-statement'] },
   contentOrder: { label: 'Content reading order', description: 'The saved DOM order of the heading, description and action in the content stack. The heading always remains present.', options: { default: 'Heading, description, action', 'heading-body-action': 'Heading, description, action', 'heading-action-body': 'Heading, action, description', 'body-heading-action': 'Description, heading, action', 'body-action-heading': 'Description, action, heading', 'action-heading-body': 'Action, heading, description', 'action-body-heading': 'Action, description, heading' }, groups: ['hero', 'about', 'cta', 'contact'], excludeBlocks: ['contact-form'] },
   textOrder: { label: 'Item text reading order', description: 'The saved DOM order of each item heading and description. Individual item placements can override this choice.', options: { default: 'Heading then description', 'heading-body': 'Heading then description', 'body-heading': 'Description then heading' }, groups: ['features', 'services', 'gallery', 'process'], excludeBlocks: ['services-reveal'] },
   iconPlacement: { label: 'Feature icon placement', description: 'Place feature icons above or beside their text. Individual item placements can override this choice.', options: { default: 'Component default', above: 'Above the text', beside: 'Beside the text' }, groups: ['features'] },
@@ -32,21 +33,39 @@ export const MAX_COMPOSITION_QUESTIONS = 160;
 export function elementFieldsFor(sectionOrGroup) {
   const section = typeof sectionOrGroup === 'string' ? { group: sectionOrGroup } : sectionOrGroup;
   if (!section) return [];
+  if (MANIFEST_BY_ID[section.block]) return [...MANIFEST_BY_ID[section.block].elements];
   if (EXPANSION_BY_ID[section.block]) {
     const behavior = EXPANSION_BY_ID[section.block].behavior;
     const fields = ['entrance'];
     if (['hero', 'pricing', 'services', 'cta', 'contact', 'navigation'].includes(section.group) && behavior !== 'inquiry') fields.push('buttonStyle', 'buttonIcon', 'buttonLabelStyle', 'buttonIconPlacement', 'actionMotion');
     if (['features', 'services', 'gallery', 'process'].includes(section.group) && !['matrix', 'expand-grid', 'image-accordion'].includes(behavior)) fields.push('textOrder');
     if (section.group === 'features' && behavior !== 'matrix') fields.push('iconStyle', 'iconSize');
+    // Base blocks get a control only in groups where the base version offered no way to set it,
+    // so a value stored earlier cannot start to act (see mediaDefaultFor for the media side).
+    if (['quote-grid', 'team-grid', 'directory', 'logo-wall', 'stats'].includes(behavior)) fields.push('columns');
+    if (behavior === 'image-cta') fields.push('mediaPlacement');
     return fields;
   }
   if (isInterfaceBlock(section.block)) return ['buttonStyle', 'buttonIcon', 'buttonLabelStyle', 'actionMotion', 'entrance'];
   return Object.entries(ELEMENT_CONTROLS).filter(([, control]) => control.groups.includes(section.group) && !control.excludeBlocks?.includes(section.block)).map(([key]) => key);
 }
 
+/** The side of the content the image takes when `mediaPlacement` is `default`: the order the
+ * block has at base. It depends on the group only: the about and call-to-action blocks render the
+ * image first, the introductions render the content first. */
+export function mediaDefaultFor(section) {
+  return ['about', 'cta'].includes(section?.group) ? 'before' : 'after';
+}
+/** The side the image actually takes: an explicit `before` or `after`, otherwise the default. */
+export function mediaSideFor(section) {
+  const value = section?.elements?.mediaPlacement;
+  return value === 'before' || value === 'after' ? value : mediaDefaultFor(section);
+}
 export function elementOptionsFor(section, key) {
   if (!Object.hasOwn(ELEMENT_CONTROLS, key)) return {};
   const options = ELEMENT_CONTROLS[key].options;
+  // The default option names the side it stands for in this group; `default` stays the first key.
+  if (key === 'mediaPlacement') return { ...options, default: options[mediaDefaultFor(section)] };
   if (key !== 'featuredItem' || !Array.isArray(section?.items)) return options;
   return Object.fromEntries(Object.entries(options).filter(([value]) => ['default', 'none'].includes(value) || ITEM_ORDINALS.indexOf(value) < section.items.length));
 }

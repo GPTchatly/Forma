@@ -8,7 +8,7 @@ const port = Number(process.env.PORT || 4318);
 try {
   const response = await fetch(`http://127.0.0.1:${port}/api/status`, { signal: AbortSignal.timeout(3000) });
   const status = await response.json();
-  if (!response.ok || typeof status.token !== 'string' || status.version !== '0.2.0') throw new Error('The application on this port is not the expected Forma instance.');
+  if (!response.ok || typeof status.token !== 'string' || status.version !== '0.3.0') throw new Error('The application on this port is not the expected Forma instance.');
   const stopped = await fetch(`http://127.0.0.1:${port}/api/shutdown`, { method: 'POST', headers: { 'X-Forma-Token': status.token }, signal: AbortSignal.timeout(3000) });
   if (!stopped.ok) throw new Error('The server refused the stop request.');
   console.log(`Forma on port ${port} has stopped.`);

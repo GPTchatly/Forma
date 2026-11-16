@@ -1,7 +1,7 @@
 /** The browser and local server export the same validated, self-contained static files. */
 import { bundledNotices } from './notices.mjs';
 import { validateSpec } from './schema.mjs';
-import { renderDocument, themeCss } from './render.mjs';
+import { renderDocument, renderBody, pageCss, themeCss } from './render.mjs';
 import { HOME_PAGE_ID, pageEntries, pageFilename, getPageSpec } from './pages.mjs';
 
 export function createExportFiles(rawSpec, { css, script, scriptHash, license, originalLicense, notices = {} }) {
@@ -9,7 +9,7 @@ export function createExportFiles(rawSpec, { css, script, scriptHash, license, o
   const includedNotices = bundledNotices(notices, license);
   const pageFiles = Object.fromEntries(pages.map((page) => [pageFilename(spec, page.id), renderDocument(spec, { css, script, scriptHash, pageId: page.id, notices: includedNotices, originalLicense })]));
   const draftCount = pages.reduce((count, page) => count + getPageSpec(spec, page.id).sections.filter((section) => section.draft).length, 0);
-  const sourceStyles = Object.fromEntries(pages.map((page) => [page.id === HOME_PAGE_ID ? 'source/site.css' : `source/pages/${page.slug}.css`, `${css}\n${themeCss(getPageSpec(spec, page.id))}`]));
+  const sourceStyles = Object.fromEntries(pages.map((page) => [page.id === HOME_PAGE_ID ? 'source/site.css' : `source/pages/${page.slug}.css`, `${pageCss(css, renderBody(spec, { pageId: page.id }))}\n${themeCss(getPageSpec(spec, page.id))}`]));
   return {
     ...pageFiles,
     'project.json': JSON.stringify(spec, null, 2),

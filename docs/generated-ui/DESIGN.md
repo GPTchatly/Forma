@@ -335,7 +335,7 @@ The default expansion border is fine (1px), with a stronger Neo-Brutalist border
 
 ## Components
 
-Native disclosures, tabs, fields and selected states use the active page and section variables. Generated-site interactions are implemented by the fixed local runtime. The private editor-tooling sidecar is excluded from the distributed source.
+The sidecar supplies eight self-contained native HTML/CSS samples. They resolve active site/section variables when hosted inside a generated page and use the existing individual-settings Porcelain theme as an isolated fallback. They illustrate primitives, not a replacement global palette or style. Native disclosures work directly; selected states in samples are representative authored markup, while generated-site state changes are implemented by the local runtime.
 
 ### Buttons and selection controls
 

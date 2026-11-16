@@ -39,7 +39,7 @@ export function slotsFor(section, itemId, t = english) {
   if (isInterfaceBlock(section)) return imageOwner(section, itemId) && isPartVisible(item || section, 'media') ? [{ partKey: 'media', label: t(labels.media), destinationSlot: 'product-media', required: false, choices: [] }] : [];
   const fields = elementFieldsFor(section), slots = [];
   if (!item && fields.includes('contentOrder')) slots.push(...orderedSlots(section, null, 'content', t));
-  if (!item && fields.includes('mediaPlacement')) slots.push(enumSlot('media', 'hero-media', { before: 'Place image before the content', after: 'Place image after the content' }, t));
+  if (!item && section.group === 'hero' && fields.includes('mediaPlacement')) slots.push(enumSlot('media', 'hero-media', { before: 'Place image before the content', after: 'Place image after the content' }, t));
   else if (imageOwner(section, itemId)) slots.push({ partKey: 'media', label: t(labels.media), destinationSlot: item ? 'gallery-media' : 'about-media', required: false, choices: [] });
   if (item && textGroups.includes(section.group) && fields.includes('textOrder')) slots.push(...orderedSlots(section, item, 'text', t));
   if (item && fields.includes('iconPlacement') && item.icon !== 'none') slots.push(enumSlot('icon', 'feature-icon', { above: 'Place icon above the text', beside: 'Place icon beside the text' }, t));

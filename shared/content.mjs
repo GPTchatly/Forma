@@ -5,13 +5,15 @@ import { DEFAULT_PRESENTATION } from './design.mjs';
 import { DEFAULT_ELEMENTS } from './elements.mjs';
 import { DEFAULT_INTERFACE, isInterfaceBlock, preparedInterface } from './interfaces.mjs';
 import { EXPANSION_BY_ID } from './expansion.mjs';
+import { MANIFEST_BY_ID } from './blocks.mjs';
+import { copyFor } from './copy.mjs';
 export function newItemId() { return `item-${globalThis.crypto.randomUUID()}`; }
 const item = (title, body = '', meta = '', price = '') => ({ id: newItemId(), removedParts: [], title, body, meta, price, image: '', alt: '', imageSize: { width: 100, height: null, fit: 'cover' }, href: '', icon: 'default', buttonIcon: 'default', uiType: 'default', placements: { iconPlacement: 'default', textOrder: 'default', buttonIconPlacement: 'default' } });
 export function makeInterfaceSection(block, family = 'application') {
   const content = preparedInterface(block);
   return { widgets: [], removedParts: [], id: 'hero', group: 'hero', block, eyebrow: '', title: '', body: '', button: '', href: '', image: '', alt: '', imageSize: { width: 100, height: null, fit: 'cover' }, locked: false, draft: true, presentation: { ...DEFAULT_PRESENTATION }, elements: { ...DEFAULT_ELEMENTS }, interface: { ...DEFAULT_INTERFACE }, featuredItemId: null, ...content, items: content.items.map((entry, index) => ({ ...item(entry.title, entry.body, entry.meta, entry.price), ...entry, art: index, imageSize: { width: 100, height: null, fit: 'cover' } })) };
 }
-export function makeSection(group, block = DEFAULT_BLOCKS[group], family = 'studio') {
+export function makeSection(group, block = DEFAULT_BLOCKS[group], family = 'studio', voice) {
   if (group === 'hero' && isInterfaceBlock(block)) return makeInterfaceSection(block, family);
   const result = { widgets: [], removedParts: [], id: group, group, block, eyebrow: '', title: '', body: '', button: '', href: '', image: '', alt: '', imageSize: { width: 100, height: null, fit: 'cover' }, items: [], locked: false, draft: true, presentation: { ...DEFAULT_PRESENTATION }, elements: { ...DEFAULT_ELEMENTS }, interface: { ...DEFAULT_INTERFACE } };
   const content = {
@@ -38,6 +40,18 @@ export function makeSection(group, block = DEFAULT_BLOCKS[group], family = 'stud
     result.title = headlines[family] || headlines.general;
   }
   if (family === 'hospitality' && group === 'gallery') { result.eyebrow = 'Take a look around'; result.title = 'Space to settle in.'; result.items = [item('Your space', 'Add a real photo and description.', 'The stay'), item('The details', 'Add a real photo and description.', 'Inside'), item('Around us', 'Add a real photo and description.', 'The setting')]; }
+  // A prepared copy pack applies only when a voice is passed (the composer, for sections it
+  // creates); every other caller gets the content above. Prices and item ids are never touched.
+  const pack = voice === undefined ? null : copyFor(group, family, voice);
+  if (pack) {
+    for (const field of ['eyebrow', 'title', 'body']) if (typeof pack[field] === 'string') result[field] = pack[field];
+    (pack.items || []).forEach((entry, index) => {
+      const target = result.items[index];
+      if (!target) return;
+      target.title = entry.title; target.body = entry.body;
+      if (typeof entry.meta === 'string') target.meta = entry.meta;
+    });
+  }
   if (block === 'services-reveal') result.body = 'Open a service to read the details. Replace these examples with your actual offerings.';
   if (block === 'gallery-carousel') result.body = 'Swipe or use the gallery buttons to explore. Add your own images and captions.';
   if (block === 'gallery-stack') result.body = 'A few moments, collected. Add your own images and descriptions.';
@@ -48,6 +62,8 @@ export function makeSection(group, block = DEFAULT_BLOCKS[group], family = 'stud
     if (['features-media', 'features-tabs', 'features-expand', 'gallery-filter', 'gallery-albums', 'faq-groups'].includes(block)) result.items.forEach((entry, index) => { entry.meta = index % 2 ? 'Details' : 'Overview'; });
     if (block === 'contact-guided') result.items = [item('Your name', 'Tell us your name.'), item('Your email', 'Enter your email address.'), item('Your message', 'Describe your inquiry.')];
     if (block === 'pricing-period') result.items.forEach((entry) => { entry.price = 'Add monthly price / Add annual price'; });
+    // A manifest block brings its own prepared content; without it the group's content stays.
+    MANIFEST_BY_ID[block]?.content?.(result, { item });
   }
   result.items.forEach((entry, index) => { entry.art = index; });
   result.featuredItemId = group === 'pricing' && block === 'pricing-featured' ? result.items[1]?.id ?? null : null;
@@ -55,6 +71,26 @@ export function makeSection(group, block = DEFAULT_BLOCKS[group], family = 'stud
 }
 export function createSpec(brandName = 'Studio North') {
   return { schemaVersion: SCHEMA_VERSION, name: `${brandName} website`, family: 'studio', brief: '', brand: { name: brandName, tagline: 'Thoughtful ideas, made tangible.', email: '', cta: 'Let’s talk', href: '#contact', language: 'en' }, theme: { ...DEFAULT_THEME, font: 'editorial' }, sections: ['navigation', 'hero', 'features', 'gallery', 'services', 'process', 'faq', 'contact', 'footer'].map((group) => makeSection(group)), pages: [] };
+}
+// Section settings of the sample canvas: a colour wash behind the introduction, split headings,
+// a three-up square gallery, and soft and contrast bands that give the page its rhythm.
+const SAMPLE_PRESENTATION = {
+  hero: { backdrop: 'mesh', spacing: 'generous' },
+  features: { intro: 'split' },
+  gallery: { intro: 'split', media: 'square' },
+  services: { tone: 'soft', surface: 'plain' },
+  process: { tone: 'contrast', backdrop: 'grid', intro: 'split' },
+  faq: { surface: 'plain' },
+  contact: { tone: 'soft' }
+};
+/** The sample canvas the editor opens with: createSpec()'s brand, copy and blocks, presented with
+ * display headings, a wide measure and the settings above. New projects still start from createSpec(). */
+export function createSampleSpec() {
+  const spec = createSpec();
+  spec.theme = { ...spec.theme, typeScale: 'dramatic', width: 'wide' };
+  for (const section of spec.sections) Object.assign(section.presentation, SAMPLE_PRESENTATION[section.group]);
+  spec.sections.find((section) => section.group === 'gallery').elements.columns = 'three';
+  return spec;
 }
 export function isBareLiteralPrefix(prefix) {
   // A bare field starts a sentence/line or follows a preceding quoted literal.
