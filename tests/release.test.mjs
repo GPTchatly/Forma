@@ -1,71 +1,166 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, symlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { collectReleaseFiles, isReleasePath, scanText, auditDependencyContract, auditImports, PUBLIC_EMAIL } from '../scripts/release-check.mjs';
-import { auditHistory } from '../scripts/release-history.mjs';
-async function fixture(t) { const root = await mkdtemp(path.join(tmpdir(), 'forma-public-gate-')); t.after(() => rm(root, { recursive: true, force: true })); return root; }
+import { collectReleaseFiles, isReleasePath, scanText, auditDependencyContract } from '../scripts/release-check.mjs';
 
-test('source selection excludes private data, service infrastructure and unreviewed recordings', () => {
-  for (const name of ['.env', '.data/project.json', '.git/config', '.agents/private.md', 'docs/generated-ui/.impeccable/design.json', 'docs/screenshots/workspace.png', 'hosted/app.mjs', 'api/compose.mjs', 'vercel.json', 'intro.gif', 'public/intro.mp4', 'public/private.key', 'public/../index.html']) assert.equal(isReleasePath(name), false);
-  for (const name of ['README.md', '.env.example', 'public/app.mjs', 'public/favicon.ico', 'tests/fixtures/images.mjs', 'licenses/FANCY.txt', '.github/workflows/verify.yml']) assert.equal(isReleasePath(name), true);
-});
-test('only the exact approved mailbox is allowed, including encoded forms', () => {
-  assert.deepEqual(scanText(PUBLIC_EMAIL + ' mailto:' + PUBLIC_EMAIL), []);
-  for (const address of [['person', 'example.com'].join('@'), ['gptchatly+alias', 'gmail.com'].join('@'), ['gptchatly', 'gmail.com.evil'].join('@')]) {
-    assert.ok(scanText(address).some(f => f.category === 'email-not-allowed'));
-    assert.ok(scanText(address.replace('@', '%40')).some(f => f.category === 'encoded-email-not-allowed'));
-    assert.ok(scanText(address.replace('@', '&#64;')).some(f => f.category === 'encoded-email-not-allowed'));
+test('source release rejects private files and allows the runtime, tests and licenses', () => {
+  for (const name of ['.env', '.env.local', '.data/projects/site.json', '.impeccable/config.json',
+    'artifacts/result.json', 'docs/test-results/output.txt', 'docs/screenshots/workspace.png', 'docs/generated-ui/.impeccable/design.json',
+    '.git/config', 'dist/index.html', '.vercel/project.json', 'node_modules/zod/index.js',
+    'hosted/.env', 'api/private.key', 'public/private.key', 'server/.env', 'public/../../.env', 'public/../index.html']) {
+    assert.equal(isReleasePath(name), false, name);
+  }
+  for (const name of ['.env.example', '.env.hosted.example', '.vercelignore', 'vercel.json', 'hosted/app.mjs', 'api/status.mjs', 'LICENSE', 'licenses/HYPERUI.txt', 'public/index.html',
+    'public/favicon.ico', 'tests/release.test.mjs', 'docs/ARCHITECTURE.md', 'server/app.mjs', '.github/workflows/verify.yml', '.github/dependabot.yml']) {
+    assert.equal(isReleasePath(name), true, name);
   }
 });
-test('privacy findings omit matches and cover credentials, machine paths and URLs', () => {
+
+test('release collection rejects modified binary assets even with a valid ICO header', async (t) => {
+  const root = await fixture(t);
+  await mkdir(path.join(root, 'public'));
+  const icon = await readFile(new URL('../public/favicon.ico', import.meta.url));
+  await writeFile(path.join(root, 'public/favicon.ico'), icon);
+  assert.ok(!(await collectReleaseFiles(root)).problems.some(item => item.file === 'public/favicon.ico'));
+  await writeFile(path.join(root, 'public/favicon.ico'), Buffer.concat([icon, Buffer.from('private appended data')]));
+  assert.ok((await collectReleaseFiles(root)).problems.some(item => item.file === 'public/favicon.ico' && item.category === 'unreviewed-binary-asset'));
+});
+
+test('release scan reports categories and locations without returning sensitive values', () => {
+  const key = ['sk', 'or', 'v1'].join('-') + '-' + 'a19b63c84d02ef57'.repeat(4);
+  const contact = ['private-person', 'mail-provider.example'].join('@');
+  const home = ['C:', 'Users', 'private-person', 'Documents'].join('/');
+  const source = `first line\n${key}\n${contact}\n${home}`;
+  const findings = scanText(source);
+  assert.deepEqual(findings.map(item => item.category).sort(), ['non-example-email', 'personal-home-path', 'provider-token']);
+  assert.ok(findings.every(item => item.line >= 2 && item.line <= 4));
+  assert.ok(!JSON.stringify(findings).includes(key));
+  assert.ok(!JSON.stringify(findings).includes('private-person'));
+  assert.ok(scanText(['', 'home', 'private-person'].join('/')).some(item => item.category === 'personal-home-path'));
+});
+
+test('release scan covers private keys, assignments, URLs and provider token formats', () => {
   const samples = [
-    ['provider-token', ['sk', 'or', 'v1', 'a'.repeat(40)].join('-')],
     ['private-key', ['-----BEGIN ', 'PRIVATE KEY-----'].join('')],
+    ['provider-token', ['ghp', ''].join('_') + 'a'.repeat(36)],
     ['credential-assignment', ['TYPESAFE_API_KEY', '=' + 'a'.repeat(40)].join('')],
-    ['credential-url', ['https://user:pass', 'example.com'].join('@')],
-    ['machine-path', ['C:', 'workspace', 'private.txt'].join('/')],
-    ['personal-home-path', ['', 'home', 'private-person', 'file'].join('/')]
+    ['credential-assignment', ['apiKey', ': "' + 'a'.repeat(40) + '"'].join('')],
+    ['credential-url', ['https://operator:', 'a'.repeat(25), '@api.example.com'].join('')],
+    ['jwt-token', ['eyJ' + 'a'.repeat(12), 'b'.repeat(12), 'c'.repeat(12)].join('.')],
   ];
-  for (const [category, value] of samples) { const findings = scanText('first\n' + value); assert.ok(findings.some(f => f.category === category)); assert.ok(!JSON.stringify(findings).includes(value)); assert.ok(findings.every(f => f.line === 2)); }
+  for (const [category, source] of samples) assert.ok(scanText(source).some(item => item.category === category), category);
+  assert.deepEqual(scanText('hello@example.com hello@example.test TYPESAFE_API_KEY='), []);
+  assert.deepEqual(scanText('https://user:pass@example.com'), []);
+  assert.ok(scanText('https://user:pass@example.com' + '.evil').some(item => item.category === 'credential-url'));
 });
-test('zero-dependency manifest and lock reject extra packages and install hooks', async () => {
-  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url))), lock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url)));
-  assert.deepEqual(auditDependencyContract(manifest, lock), []);
-  assert.ok(auditDependencyContract({ ...manifest, dependencies: { surprise: '1.0.0' } }, lock).length);
-  assert.ok(auditDependencyContract({ ...manifest, scripts: { ...manifest.scripts, postinstall: 'bad' } }, lock).length);
-  assert.ok(auditDependencyContract(manifest, { ...lock, packages: { ...lock.packages, 'node_modules/surprise': {} } }).length);
+
+async function fixture(t) {
+  const root = await mkdtemp(path.join(tmpdir(), 'forma-release-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  return root;
+}
+
+test('release collection excludes private directory contents and rejects unexpected source files', async (t) => {
+  const root = await fixture(t);
+  for (const name of ['.data', '.impeccable', 'artifacts', 'dist', '.vercel', 'node_modules', 'docs/screenshots', 'docs/test-results', 'docs/generated-ui/.impeccable', 'server']) {
+    await mkdir(path.join(root, name), { recursive: true });
+    await writeFile(path.join(root, name, 'private.key'), 'do not publish');
+  }
+  await writeFile(path.join(root, 'server', 'app.mjs'), 'export const safe = true;');
+  await writeFile(path.join(root, 'docs/generated-ui/.impeccable/design.json'), '{"privateTooling":true}');
+  await writeFile(path.join(root, 'docs/generated-ui/DESIGN.md'), 'Documented generated-site tokens.');
+  await writeFile(path.join(root, '.env'), 'do not publish');
+  const result = await collectReleaseFiles(root);
+  assert.deepEqual([...result.files.keys()].sort(), ['docs/generated-ui/DESIGN.md', 'server/app.mjs']);
+  assert.ok(result.problems.some(item => item.file === 'server/private.key' && item.category === 'unexpected-source-file'));
+  assert.ok(!result.problems.some(item => /^(?:\.data|\.impeccable|artifacts|dist|\.vercel|node_modules|docs\/screenshots|docs\/test-results|docs\/generated-ui\/\.impeccable)(?:\/|$)/.test(item.file)));
 });
-test('collection rejects appended binary data and extra selected-tree files', async t => {
-  const root = await fixture(t); await mkdir(path.join(root, 'public')); await mkdir(path.join(root, 'docs/screenshots'), { recursive: true });
-  const icon = await readFile(new URL('../public/favicon.ico', import.meta.url)); await writeFile(path.join(root, 'public/favicon.ico'), icon);
-  await writeFile(path.join(root, 'docs/screenshots/private.key'), 'private');
-  let result = await collectReleaseFiles(root); assert.ok(!result.problems.some(f => f.category === 'unreviewed-binary-asset')); assert.ok(!result.files.has('docs/screenshots/private.key'));
-  await writeFile(path.join(root, 'public/favicon.ico'), Buffer.concat([icon, Buffer.from('hidden')])); await writeFile(path.join(root, 'public/private.key'), 'private');
-  result = await collectReleaseFiles(root); assert.ok(result.problems.some(f => f.category === 'unreviewed-binary-asset')); assert.ok(result.problems.some(f => f.category === 'unexpected-source-file'));
+
+test('release collection rejects source directory junctions without reading their target', async (t) => {
+  const root = await fixture(t), outside = await fixture(t);
+  await writeFile(path.join(outside, 'private.mjs'), 'do not publish');
+  await symlink(outside, path.join(root, 'server'), process.platform === 'win32' ? 'junction' : 'dir');
+  const result = await collectReleaseFiles(root);
+  assert.equal(result.files.size, 0);
+  assert.ok(result.problems.some(item => item.file === 'server' && item.category === 'symlink-not-allowed'));
 });
-test('collection refuses symlinks without reading their targets', async t => {
-  const root = await fixture(t); await mkdir(path.join(root, 'public')); await mkdir(path.join(root, 'outside'));
-  await writeFile(path.join(root, 'outside/secret.mjs'), 'private'); await symlink(path.join(root, 'outside'), path.join(root, 'public/link'), 'junction');
-  const result = await collectReleaseFiles(root); assert.ok(result.problems.some(f => f.category === 'symlink-not-allowed')); assert.ok(![...result.files.keys()].some(name => name.includes('secret')));
+
+const actualManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const actualLock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
+
+test('release dependency gate accepts only the reviewed pinned Zod manifest and lock', () => {
+  assert.deepEqual(auditDependencyContract(actualManifest, actualLock), []);
+  for (const mutate of [
+    (manifest) => { manifest.dependencies.zod = '^4.6.7'; },
+    (manifest) => { manifest.dependencies.extra = '1.0.0'; },
+    (manifest) => { manifest.devDependencies = { extra: '1.0.0' }; },
+    (manifest) => { manifest.optionalDependencies = { extra: '1.0.0' }; },
+    (manifest) => { manifest.peerDependencies = { extra: '1.0.0' }; },
+    (manifest) => { manifest.bundledDependencies = ['extra']; },
+    (manifest) => { manifest.overrides = { zod: '4.6.4' }; },
+    (manifest) => { manifest.resolutions = { zod: '4.6.4' }; },
+    (manifest) => { manifest.workspaces = ['packages/*']; },
+    (manifest) => { manifest.scripts.prepare = 'node prepare.mjs'; },
+    (manifest) => { manifest.scripts.preinstall = 'node installer.mjs'; },
+    (manifest) => { manifest.scripts.install = ''; },
+    (manifest) => { manifest.scripts.postinstall = 'node installer.mjs'; },
+  ]) {
+    const manifest = structuredClone(actualManifest); mutate(manifest);
+    assert.ok(auditDependencyContract(manifest, actualLock).some((finding) => finding.file === 'package.json'));
+  }
 });
-test('literal import completeness rejects missing or package imports', () => {
-  const files = new Map([['public/app.mjs', Buffer.from("import { x } from '/shared/example.mjs';")], ['shared/example.mjs', Buffer.from('export const x=1;')]]);
-  assert.deepEqual(auditImports(files), []); files.delete('shared/example.mjs'); assert.equal(auditImports(files)[0].category, 'unresolved-source-import');
-  files.set('public/app.mjs', Buffer.from("import x from 'surprise';")); assert.ok(auditImports(files).length);
+
+test('release dependency gate rejects unexpected registry, integrity, transitive code and lifecycle flags', () => {
+  for (const mutate of [
+    (lock) => { lock.lockfileVersion = 2; },
+    (lock) => { lock.version = '9.9.9'; },
+    (lock) => { lock.dependencies = { extra: { version: '1.0.0' } }; },
+    (lock) => { lock.packages[''].dependencies.zod = '4.6.4'; },
+    (lock) => { lock.packages[''].devDependencies = { extra: '1.0.0' }; },
+    (lock) => { lock.packages[''].hasInstallScript = true; },
+    (lock) => { lock.packages['node_modules/extra'] = { version: '1.0.0' }; },
+    (lock) => { lock.packages['node_modules/zod'].version = '4.6.4'; },
+    (lock) => { lock.packages['node_modules/zod'].resolved = 'https://example.com/zod.tgz'; },
+    (lock) => { lock.packages['node_modules/zod'].integrity += 'a'; },
+    (lock) => { delete lock.packages['node_modules/zod'].integrity; },
+    (lock) => { lock.packages['node_modules/zod'].hasInstallScript = true; },
+    (lock) => { lock.packages['node_modules/zod'].hasInstallScript = 'true'; },
+    (lock) => { lock.packages['node_modules/zod'].scripts = { install: 'node installer.mjs' }; },
+    (lock) => { lock.packages['node_modules/zod'].dependencies = { extra: '1.0.0' }; },
+    (lock) => { lock.packages['node_modules/zod'].optionalDependencies = { extra: '1.0.0' }; },
+    (lock) => { lock.packages['node_modules/zod'].link = true; },
+  ]) {
+    const lock = structuredClone(actualLock); mutate(lock);
+    assert.ok(auditDependencyContract(actualManifest, lock).some((finding) => finding.file === 'package-lock.json'));
+  }
 });
-test('history audit clears approved metadata then rejects a deleted private file and disallowed identities', async t => {
-  const root = await fixture(t), git = args => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe' });
-  assert.equal((await auditHistory(root)).available, false);
-  git(['init', '--initial-branch=main']); git(['config', 'user.name', 'GPTchatly']); git(['config', 'user.email', PUBLIC_EMAIL]);
-  await writeFile(path.join(root, 'README.md'), 'Public source'); git(['add', 'README.md']); git(['-c', 'commit.gpgsign=false', 'commit', '-m', 'Synthetic public root']);
-  let result = await auditHistory(root); assert.equal(result.commits, 1); assert.deepEqual(result.problems, []);
-  git(['-c', 'tag.gpgsign=false', 'tag', '-a', 'v-test', '-m', 'Synthetic tag']); result = await auditHistory(root); assert.equal(result.tags, 1); assert.deepEqual(result.problems, []);
-  await writeFile(path.join(root, '.env'), ['API_KEY', '=' + 'a'.repeat(40)].join('')); git(['add', '.env']); git(['-c', 'commit.gpgsign=false', 'commit', '-m', 'Synthetic exposure']);
-  git(['rm', '.env']); git(['-c', 'commit.gpgsign=false', 'commit', '-m', 'Synthetic removal']);
-  result = await auditHistory(root); assert.ok(result.problems.some(f => f.category === 'excluded-history-path')); assert.ok(result.problems.some(f => f.category === 'credential-assignment'));
-  git(['config', 'user.email', ['other', 'example.com'].join('@')]); await writeFile(path.join(root, 'README.md'), 'Change'); git(['add', 'README.md']); git(['-c', 'commit.gpgsign=false', 'commit', '-m', 'Synthetic wrong identity']);
-  result = await auditHistory(root); assert.ok(result.problems.some(f => f.category === 'author-email-not-allowed')); assert.ok(result.problems.some(f => f.category === 'committer-email-not-allowed'));
+
+test('source releases require hosted deployment entrypoints and empty credential examples', async (t) => {
+  const root = await fixture(t);
+  await writeFile(path.join(root, '.env.hosted.example'), 'PUBLIC_ORIGIN=https://example.com\nFORMA_SESSION_SECRET=\nFORMA_EDGE_SECRET=\nUPSTASH_REDIS_REST_TOKEN=\n');
+  let result = await collectReleaseFiles(root);
+  for (const filename of ['.vercelignore', 'vercel.json', 'scripts/build-hosted.mjs', 'hosted/app.mjs', 'hosted/turnstile.mjs', 'api/status.mjs', 'api/challenge.mjs', 'api/connection.mjs', 'api/compose.mjs', 'public/hosted-client.mjs', 'public/turnstile.mjs']) {
+    assert.ok(result.problems.some((finding) => finding.file === filename && finding.category === 'required-file-missing'));
+  }
+  assert.ok(!result.problems.some((finding) => finding.file === '.env.hosted.example'));
+  await writeFile(path.join(root, '.env.hosted.example'), ['FORMA_SESSION_SECRET=' + 'a'.repeat(20), 'UPSTASH_REDIS_REST_TOKEN=' + 'b'.repeat(20), 'FORMA_EDGE_SECRET=' + 'c'.repeat(20), 'TURNSTILE_SECRET_KEY=' + 'd'.repeat(20), 'TURNSTILE_SESSION_SECRET=' + 'e'.repeat(40), 'TURNSTILE_ENFORCE=on'].join('\n'));
+  result = await collectReleaseFiles(root);
+  assert.equal(result.problems.filter((finding) => finding.file === '.env.hosted.example' && finding.category === 'example-key-must-be-empty').length, 5);
+});
+
+test('QWEN3 Redis variables are empty in examples and literal credentials are detected without echoing values', async (t) => {
+  const root = await fixture(t);
+  const names = ['QWEN3_KV_URL', 'QWEN3_KV_REST_API_URL', 'QWEN3_KV_REST_API_TOKEN', 'QWEN3_KV_REST_API_READ_ONLY_TOKEN', 'QWEN3_REDIS_URL'];
+  const credential = ['synthetic', 'credential', 'fixture'].join('-');
+  for (const name of names) {
+    const findings = scanText(`${name}="${credential}"`);
+    assert.ok(findings.some((finding) => finding.category === 'credential-assignment'));
+    assert.ok(!JSON.stringify(findings).includes(credential));
+  }
+  await writeFile(path.join(root, '.env.hosted.example'), names.map((name) => `${name}=`).join('\n') + '\nQWEN3_LIMIT=10\n');
+  assert.ok(!(await collectReleaseFiles(root)).problems.some((finding) => finding.file === '.env.hosted.example'));
+  await writeFile(path.join(root, '.env.hosted.example'), names.map((name) => `${name}=filled`).join('\n'));
+  assert.equal((await collectReleaseFiles(root)).problems.filter((finding) => finding.file === '.env.hosted.example' && finding.category === 'example-key-must-be-empty').length, names.length);
 });

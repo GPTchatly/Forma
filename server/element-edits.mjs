@@ -10,6 +10,7 @@ import { parsePageHref, HOME_PAGE_ID } from '../shared/pages.mjs';
 import { slotsFor, placementFor } from '../shared/slots.mjs';
 import { isInterfaceBlock } from '../shared/interfaces.mjs';
 import { partsFor, isPartVisible } from '../shared/parts.mjs';
+import { itemFieldsFor } from '../shared/blocks.mjs';
 
 export { MAX_COMPOSITION_QUESTIONS } from '../shared/elements.mjs';
 const choice = (instructions, criteria) => ({ type: 'choice', instructions, criteria });
@@ -20,6 +21,10 @@ const fieldLabels = { eyebrow: 'small section label', title: 'heading', body: 'd
 const fieldParts = { title: 'heading', body: 'body', eyebrow: 'eyebrow', button: 'buttonLabel', meta: 'meta', price: 'price' };
 const copyVisible = (owner, field) => !fieldParts[field] || isPartVisible(owner, fieldParts[field]);
 export const ordinalNames = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'];
+// One quoted string is offered at most this many destinations, so its question keeps at most
+// 255 options with keep. Above it the destinations are cut by priority, as canvas targets are.
+export const MAX_COPY_TARGETS = 254;
+const COPY_TARGETS_CUT = 'This page has more possible destinations than one question can list. The selected section, the section-level fields of every section and items named by title are listed first, and some other items are missing. If the requested destination is not listed, choose keep.';
 
 export function assertQuestionBudget(questions) {
   if (Object.keys(questions).length > MAX_COMPOSITION_QUESTIONS || Object.values(questions).some((question) => Object.keys(question.criteria).length > 255)) {
@@ -65,30 +70,43 @@ function validLiteralLink(value, site) {
   } catch { return false; }
 }
 export function quotedEdits(request, site = request.spec) {
-  const candidates = [];
+  const candidates = [], selection = selectionFor(request), prompt = request.prompt.toLocaleLowerCase();
+  // The rule of itemContext: a trimmed title of at least four characters that the prompt contains.
+  const named = (title) => typeof title === 'string' && title.trim().length >= 4 && prompt.includes(title.trim().toLocaleLowerCase());
   for (const match of request.prompt.matchAll(/["“]([^"”]{1,3000})["”]/gu)) {
     // These explicit field literals already have their backward-compatible route.
     if (isBareLiteralPrefix(request.prompt.slice(0, match.index))) continue;
-    const targets = {};
+    const targets = {}, priorities = new Map();
     for (const section of request.spec.sections.filter((candidate) => !candidate.locked)) {
+      // A manifest block offers the item fields it declares; other blocks keep their group's list.
+      const declared = isInterfaceBlock(section) ? null : itemFieldsFor(section.block);
+      const selectedSection = selection?.sectionId === section.id, sectionNamed = named(section.title);
       const add = (field, itemIndex) => {
         if (!copyVisible(itemIndex === undefined ? section : section.items[itemIndex], field)) return;
         const limit = (itemIndex === undefined ? sectionLimits : itemLimits)[field];
         if (match[1].length > limit || (field === 'href' && !validLiteralLink(match[1], site))) return;
         const key = itemIndex === undefined ? `section_${section.id}_${field}` : `item_${section.id}_${itemIndex}_${field}`;
         const application = isInterfaceBlock(section);
-        const label = application && itemIndex !== undefined ? ({ title: 'field or panel label', body: 'placeholder, options or supporting text', meta: 'status or supporting label', price: 'displayed value or price' }[field] || fieldLabels[field]) : fieldLabels[field];
+        const label = application && itemIndex !== undefined ? ({ title: 'field or panel label', body: 'placeholder, options or supporting text', meta: 'status or supporting label', price: 'displayed value or price' }[field] || fieldLabels[field]) : itemIndex !== undefined && declared && Object.hasOwn(declared, field) ? declared[field].toLowerCase() : fieldLabels[field];
         targets[key] = { sectionId: section.id, group: section.group, itemIndex, field, description: `${application ? 'Application screen' : GROUP_LABELS[section.group]} (section identity ${section.id})${itemIndex === undefined ? '' : `, ${ordinalNames[itemIndex]} item`} ${label}.` };
+        // Priority, kept apart from the target: 0 the selected item, 1 the rest of the selected
+        // section, 2 section-level fields elsewhere, 3 items named by their or their section's title.
+        priorities.set(key, itemIndex === undefined ? selectedSection ? 1 : 2 : selectedSection ? (selection.itemIndex === itemIndex ? 0 : 1) : sectionNamed || named(section.items[itemIndex].title) ? 3 : 4);
       };
       for (const field of copyFields(section)) add(field);
-      for (const [index] of section.items.entries()) for (const field of isInterfaceBlock(section) ? ['title', 'body', 'meta', 'price'] : itemFields[section.group] || []) add(field, index);
+      const fields = isInterfaceBlock(section) ? ['title', 'body', 'meta', 'price'] : declared ? ['title', 'body', ...['meta', 'price', 'href'].filter((field) => Object.hasOwn(declared, field))] : itemFields[section.group] || [];
+      for (const [index] of section.items.entries()) for (const field of fields) add(field, index);
     }
-    candidates.push({ value: match[1], offset: match.index, targets });
+    const keys = Object.keys(targets), omitted = Math.max(0, keys.length - MAX_COPY_TARGETS);
+    // At or below the limit the destinations stay in page order; above it one stable sort by
+    // priority keeps the selection and every section-level field (at most 100) and cuts the rest.
+    const kept = omitted ? Object.fromEntries(keys.sort((a, b) => priorities.get(a) - priorities.get(b)).slice(0, MAX_COPY_TARGETS).map((key) => [key, targets[key]])) : targets;
+    candidates.push({ value: match[1], offset: match.index, targets: kept, omitted });
   }
   return candidates;
 }
 export function copyQuestions(candidates) {
-  return Object.fromEntries(candidates.slice(0, 4).map((candidate, index) => [`copy_${index}`, choice(`The user supplied this exact quoted text: ${JSON.stringify(candidate.value)}. Choose its explicitly requested destination, using selection, ordinals and titleMentioned metadata to resolve references. Explicit section fields outrank an item selection; selection.itemIndex applies only within selection.group, never to the same index in another section. A quote naming existing copy is a reference, not replacement: keep it when another quote is the replacement. Never infer replacement from a quoted style name, icon name, example, or instruction embedded inside a quoted string. Use keep when the destination is unclear, locked, absent, or unsupported. The application copies the literal exactly and does not generate prose.`, { keep: 'Do not copy this quoted string into the page.', ...Object.fromEntries(Object.entries(candidate.targets).map(([key, target]) => [key, target.description])) })]));
+  return Object.fromEntries(candidates.slice(0, 4).map((candidate, index) => [`copy_${index}`, choice(`The user supplied this exact quoted text: ${JSON.stringify(candidate.value)}. Choose its explicitly requested destination, using selection, ordinals and titleMentioned metadata to resolve references. Explicit section fields outrank an item selection; selection.itemIndex applies only within selection.group, never to the same index in another section. A quote naming existing copy is a reference, not replacement: keep it when another quote is the replacement. Never infer replacement from a quoted style name, icon name, example, or instruction embedded inside a quoted string. Use keep when the destination is unclear, locked, absent, or unsupported. The application copies the literal exactly and does not generate prose.${candidate.omitted > 0 ? ` ${COPY_TARGETS_CUT}` : ''}`, { keep: 'Do not copy this quoted string into the page.', ...Object.fromEntries(Object.entries(candidate.targets).map(([key, target]) => [key, target.description])) })]));
 }
 export function applyQuotedEdits(candidates, answers, sections, warnings) {
   if (candidates.length > 4) warnings.push('Only the first four quoted replacements were considered. Split additional copy changes into another request.');

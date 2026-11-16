@@ -1,4 +1,4 @@
-name: Verify public source
+name: Verify source
 on:
   push:
   pull_request:
@@ -12,30 +12,19 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         node: [22, 24]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
           package-manager-cache: false
       - run: npm ci --ignore-scripts
-      - name: Install isolated test browser
-        shell: bash
-        run: |
-          npm install --prefix "$RUNNER_TEMP/forma-browser" --ignore-scripts --no-package-lock playwright@1.63.0
-          node "$RUNNER_TEMP/forma-browser/node_modules/playwright/cli.js" install --with-deps chromium
-          node -e "console.log('FORMA_PLAYWRIGHT_MODULE='+require('path').join(process.env.RUNNER_TEMP,'forma-browser','node_modules','playwright','index.mjs'))" >> "$GITHUB_ENV"
       - run: npm test
-      - run: npm run check
-      - run: npm run build
-      - run: npm run release:check
-      # PR metadata is untrusted and external contributors are credited separately.
-      # Maintained branch/tag identities are gated only on an owner push.
-      - if: github.event_name == 'push'
-        run: npm run release:history
-      - run: npm run release:source
+      - run: node scripts/check.mjs
+      - run: node scripts/build-hosted.mjs
+      - run: node scripts/release-check.mjs
+      - run: node scripts/release-source.mjs

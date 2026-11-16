@@ -143,7 +143,8 @@ test('bare global literal fields retain compact straight and curly quoted syntax
   const output = await compose(request(prompt), demoEvaluate);
   assert.equal(output.spec.brand.name, 'Acme'); assert.equal(output.spec.brand.tagline, 'Exact tagline'); assert.equal(output.spec.brand.cta, 'Join Acme');
   assert.equal(section(output.spec, 'hero').title, 'Exact heading');
-  assert.ok(!output.report.decisions.some((decision) => decision.key.startsWith('copy_')));
+  // Quoted-text questions are copy_<index>; copy_voice is the separate draft-voice question.
+  assert.ok(!output.report.decisions.some((decision) => /^copy_\d+$/.test(decision.key)));
 });
 test('qualified and bare literal fields can coexist without the earlier qualified value winning', async () => {
   const prompt = 'Change hero button: "A local action". Button: "Global action". Change features headline: "Local heading"; Headline: "Global heading".';

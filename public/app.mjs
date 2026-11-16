@@ -1,7 +1,7 @@
 /** NEW: Dependency-free local website studio. Model decisions are inspectable;
  * all rendering, persistence, editing and export remain ordinary application code. */
-import { CATALOG, THEMES, FONTS, DENSITIES, RADII, GROUPS, GROUP_LABELS, PRESETS, getBlock, blocksFor } from '/shared/catalog.mjs';
-import { createSpec, newItemId, makeSection } from '/shared/content.mjs';
+import { CATALOG, THEMES, FONTS, DENSITIES, RADII, GROUPS, GROUP_LABELS, PRESETS, presetPrompt, getBlock, blocksFor } from '/shared/catalog.mjs';
+import { createSpec, createSampleSpec, newItemId, makeSection } from '/shared/content.mjs';
 import { applyMove, moveOptions, libraryOptions, removeItem, setPartRemoved } from '/shared/structure.mjs';
 import { renderMoveControls, installStructureControls } from '/structure-controls.mjs';
 import { installLibraryDrag } from '/library-drag.mjs';
@@ -10,6 +10,7 @@ import { validateSpec, validateImageSize, escapeHtml as e } from '/shared/schema
 import { IMAGE_SIZE_LIMITS, imageOwner, imageSizeOf, supportsProductImage } from '/shared/media.mjs';
 import { inspectRaster, inspectRasterDataUrl, RASTER_LIMITS } from '/shared/raster.mjs';
 import { icon, CONTENT_ICONS, itemIconName } from '/shared/icons.mjs';
+import { DEPLOYMENT } from '/deployment.mjs';
 import { MOTION_OPTIONS, INTERACTION_SOURCES } from '/shared/interactions.mjs';
 import { ANCHORED_GROUPS, EXPANSION_BY_ID, EVIDENCE_GROUPS } from '/shared/expansion.mjs';
 import { STYLE_PRESETS, styleTheme } from '/shared/styles.mjs';
@@ -18,9 +19,11 @@ import { SHOWCASES, makeShowcase } from '/shared/showcases.mjs';
 import { ELEMENT_CONTROLS, DEFAULT_ELEMENTS, ITEM_ORDINALS, elementFieldsFor, elementOptionsFor } from '/shared/elements.mjs';
 import { PART_LABELS, partsFor, isPartVisible } from '/shared/parts.mjs';
 import { BUTTON_ICONS } from '/shared/ui-catalog.mjs';
-import { TYPE_SCALES, CONTENT_WIDTHS, PRESENTATION, PRESENTATION_LABELS, presentationFieldsFor, DIRECTIONS, JOURNEYS } from '/shared/design.mjs';
+import { TYPE_SCALES, CONTENT_WIDTHS, PRESENTATION, PRESENTATION_LABELS, OPTIONAL_PRESENTATION, presentationFieldsFor, DIRECTIONS, JOURNEYS } from '/shared/design.mjs';
 import { HOME_PAGE_ID, MAX_PAGES, PAGE_TEMPLATES, pageEntries, getPageSpec, replacePageSpec, createPage, removePage, removeSection } from '/shared/pages.mjs';
 import { INTERFACE_CONTROLS, interfaceFieldsFor, interfaceItemTypesFor, isInterfaceBlock } from '/shared/interfaces.mjs';
+import { liveAlternatives } from '/shared/fit.mjs';
+import { MANIFEST_BY_ID, itemFieldsFor } from '/shared/blocks.mjs';
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const clone = (value) => structuredClone(value);
@@ -36,7 +39,9 @@ const PRESENTATION_OPTIONS = {
   spacing: { default: 'Page default', compact: 'Compact', generous: 'Generous' },
   heading: { default: 'Component default', start: 'Left aligned', center: 'Centered' },
   surface: { default: 'Component default', plain: 'Plain', outlined: 'Outlined', filled: 'Filled' },
-  media: { default: 'Component default', landscape: 'Landscape', square: 'Square', portrait: 'Portrait' }
+  media: { default: 'Component default', landscape: 'Landscape', square: 'Square', portrait: 'Portrait' },
+  backdrop: { default: 'Component default', grid: 'Grid lines', dots: 'Dots', mesh: 'Soft color mesh', noise: 'Fine grain' },
+  intro: { default: 'Component default', split: 'Heading beside description', ruled: 'Ruled heading' }
 };
 function sectionPresentationFields(section) {
   if (isInterfaceBlock(section)) return [];
@@ -44,7 +49,7 @@ function sectionPresentationFields(section) {
 }
 function sectionLabel(section) { return isInterfaceBlock(section) ? getBlock(section.block).name : GROUP_LABELS[section.group]; }
 const state = {
-  site: validateSpec(createSpec()), activePageId: HOME_PAGE_ID, project: null, status: null, token: '',
+  site: validateSpec(createSampleSpec()), activePageId: HOME_PAGE_ID, project: null, status: null, token: '', hostedClient: null,
   mode: 'jev', operation: 'create', inspectorTab: 'design', leftTab: 'brief', libraryFilter: 'all',
   device: 'desktop', selected: 'hero', selectedItemId: null, selectedPart: null, inspect: true, busy: false,
   locks: defaultLocks(), pageLocks: new Map(),
@@ -72,25 +77,81 @@ function toast(message, kind = '') {
   $('#toasts').append(node); window.setTimeout(() => node.remove(), kind === 'error' ? 9000 : 4500);
 }
 async function api(endpoint, { method = 'GET', data, signal, blob = false } = {}) {
+  if (state.hostedClient) {
+    try { return await state.hostedClient.request(endpoint, { method, data, signal }); }
+    catch (error) {
+      // An aborted or unreadable response may still have spent free calls. A
+      // status read refreshes accounting without retrying any provider work.
+      if (endpoint === '/api/compose' && data?.mode === 'jev' && !error.freeAllowance && !['service_unavailable', 'verification_required', 'human_required', 'human_failed', 'human_unavailable', 'human_expired'].includes(error.code)) await refreshStatus().catch(() => {});
+      throw error;
+    }
+    finally { state.status = state.hostedClient.status(); updateConnection(); }
+  }
   const response = await fetch(endpoint, { method, signal, headers: { 'X-Forma-Token': state.token, ...(data !== undefined ? { 'Content-Type': 'application/json' } : {}) }, ...(data !== undefined ? { body: JSON.stringify(data) } : {}) });
   if (!response.ok) { let message = t('Request failed ({status}).', { status: response.status }); try { message = (await response.json()).error || message; } catch { /* Safe generic message retained. */ } const error = new Error(message); error.status = response.status; throw error; }
   return blob ? response.blob() : response.json();
 }
+/** Hosted only: Cloudflare Turnstile loads on the first live action that needs a pass. */
+async function humanCheck({ siteKey, signal }) {
+  const dialog = $('#human-dialog'), widget = $('#human-widget');
+  const controller = new AbortController();
+  // Cancel, Escape and a closed dialog all abort; nothing reaches the provider.
+  const cancel = () => controller.abort(new DOMException('Request cancelled.', 'AbortError'));
+  dialog.addEventListener('close', cancel);
+  widget.replaceChildren(); $('#human-status').textContent = t('Checking this browser…');
+  if (!dialog.open) dialog.showModal();
+  try {
+    let runTurnstile;
+    try { ({ runTurnstile } = await import('./turnstile.mjs')); }
+    catch { const error = new Error('The browser check is unavailable right now. Try again shortly.'); error.code = 'human_unavailable'; throw error; }
+    return await runTurnstile({ siteKey, container: widget, signal: AbortSignal.any([controller.signal, ...(signal ? [signal] : [])]) });
+  } finally {
+    dialog.removeEventListener('close', cancel);
+    if (dialog.open) dialog.close();
+    widget.replaceChildren();
+  }
+}
+async function initHostedClient() {
+  if (!state.hostedClient) { const { createHostedClient } = await import('./hosted-client.mjs'); state.hostedClient = createHostedClient({ humanCheck }); }
+  state.status = state.hostedClient.status(); state.token = '';
+  document.documentElement.dataset.deployment = 'hosted';
+  applyHostedCopy(); updateConnection();
+}
 async function refreshStatus() {
+  if (state.hostedClient) {
+    // The hosted client coordinates status reads with connection and live changes.
+    try { state.status = await state.hostedClient.refreshStatus(); }
+    finally { state.status = state.hostedClient.status(); updateConnection(); }
+    return;
+  }
   const response = await fetch('/api/status', { cache: 'no-store', credentials: 'same-origin', redirect: 'error' });
-  if (!response.ok) throw new Error(t("Could not connect to the local server."));
-  state.status = await response.json(); state.token = state.status.token;
+  if (!response.ok) throw new Error(state.hostedClient || location.protocol === 'https:' ? t('Request failed ({status}).', { status: response.status }) : t("Could not connect to the local server."));
+  const bootstrap = await response.json();
+  if (bootstrap.deployment === 'hosted') {
+    await initHostedClient();
+    state.status = state.hostedClient.setBootstrap(bootstrap);
+  } else {
+    state.status = bootstrap; state.token = state.status.token;
+  }
   updateConnection();
+}
+function applyHostedCopy() {
+  for (const node of $$('[data-i18n-hosted], [data-i18n-hosted-content]')) {
+    const content = node.hasAttribute('data-i18n-hosted-content');
+    node.setAttribute(content ? 'data-i18n-content' : 'data-i18n', node.getAttribute(content ? 'data-i18n-hosted-content' : 'data-i18n-hosted'));
+    translateStatic(node);
+  }
 }
 function updateConnection() {
   const verified = state.status?.verified;
-  const personalKey = state.status?.configured;
+  const personalKey = state.hostedClient ? state.status?.personalKeyConfigured : state.status?.configured;
   $('#settings-button').classList.toggle('verified', Boolean(verified));
   $('#connection-label').textContent = t(verified ? 'JEV connected' : personalKey ? 'JEV key set' : 'Connect JEV');
   const typedKey = $('#api-key').value.trim();
   $('#model-label').textContent = /^sk-or-/i.test(typedKey) ? '~typesafe/jev-latest' : (state.status?.model || 'jev-1.13.0');
   $('#api-key').placeholder = t(personalKey ? 'Key already set — leave blank to test it' : 'Paste your TypeSafe or OpenRouter API key');
   $('#catalog-count').textContent = formatNumber(CATALOG.length);
+  $('#library-count').textContent = t('{blocks} blocks, {elements} reusable elements and {styles} styles. Preview, insert or replace a compatible component.', { blocks: formatNumber(CATALOG.length), elements: formatNumber(Object.keys(WIDGETS).length), styles: formatNumber(Object.keys(STYLE_PRESETS).length) });
   if (state.connectionFeedback) $('#connection-feedback').textContent = t(state.connectionFeedback.message, state.connectionFeedback.params);
   updateBuildAction();
 }
@@ -98,10 +159,10 @@ function setConnectionFeedback(message, params = {}) {
   state.connectionFeedback = { message, params };
   $('#connection-feedback').textContent = t(message, params);
 }
-function lastProjectKey() { return 'forma:last-project'; }
+function lastProjectKey() { return state.hostedClient ? 'forma:hosted:last-project' : 'forma:last-project'; }
 function rememberProject() { try { if (state.project) localStorage.setItem(lastProjectKey(), state.project.id); else localStorage.removeItem(lastProjectKey()); } catch { /* The optional last-opened preference is independent of project persistence. */ } }
 // A personal key that passed a connection test stays in this browser until Remove key.
-function savedKeyName() { return 'forma:api-key'; }
+function savedKeyName() { return state.hostedClient ? 'forma:hosted:api-key' : 'forma:api-key'; }
 // `keyChangedAt` is when this tab last tested or restored a key; `savedHere` is the key it saved.
 let keyRemovals = 0, keyChangedAt = 0, savedHere = '';
 function saveKey(value) { try { localStorage.setItem(savedKeyName(), value); savedHere = value; } catch { /* Without storage the key lasts until the page or server closes. */ } }
@@ -111,7 +172,7 @@ function signalKeyRemoval(removedAt) {
   try { const signal = `${savedKeyName()}:removed`; localStorage.setItem(signal, String(removedAt)); localStorage.removeItem(signal); } catch { /* Storage is unavailable; other tabs keep their copy until they reload. */ }
 }
 // A removal newer than this tab's last key test or restore cancels its pending test and clears
-// local state (the server was cleared before the signal was sent). It deletes
+// its tab memory when hosted (a local server was cleared before the signal was sent). It deletes
 // a key this tab saved from a test that started before the removal, never a key another tab
 // saved later.
 addEventListener('storage', (event) => {
@@ -121,17 +182,18 @@ addEventListener('storage', (event) => {
   keyRemovals++;
   try { if (savedHere && localStorage.getItem(savedKeyName()) === savedHere) localStorage.removeItem(savedKeyName()); } catch { /* Nothing was stored. */ }
   savedHere = '';
-  refreshStatus().catch(() => {});
+  (state.hostedClient ? api('/api/connection', { method: 'DELETE' }) : Promise.resolve()).then(() => refreshStatus()).catch(() => {});
 });
-/** Returns the saved key to server memory without contacting the provider. */
+/** Returns the saved key to the server or tab without contacting the provider. */
 async function restoreKey() {
   let saved; try { saved = localStorage.getItem(savedKeyName()); } catch { return false; }
-  if (!saved || state.status?.credentialSource === 'server memory') return false;
+  if (!saved || !state.hostedClient && state.status?.credentialSource === 'server memory') return false;
   keyChangedAt = Date.now();
   try { return (await api('/api/connection', { method: 'POST', data: { apiKey: saved, restore: true, revision: state.status?.credentialRevision } })).restored === true; } catch { return false; }
 }
 const PROJECTS_DB_NAME = 'forma-projects-db', PROJECTS_DB_VERSION = 1, PROJECTS_STORE = 'projects';
 function openProjectsDb() {
+  if (state.hostedClient) return Promise.resolve(null);
   return new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') { resolve(null); return; }
     try {
@@ -267,15 +329,63 @@ function updateMode() {
   $('#brand-context-field').hidden = state.operation === 'create';
   updateBuildAction();
   $('#operation-note').textContent = t(OPERATION_GUIDANCE[state.operation]);
-  $('#prompt').placeholder = t(state.operation === 'redesign' ? 'Redesign this interface with a dark palette, clearer navigation and more compact spacing. Keep its content and images.' : state.operation === 'edit' ? 'For example: make the selected image 70% wide, move the heading below the description, or add search to this dashboard.' : 'A sign-in screen, chat workspace, project dashboard, storefront, or marketing website. Describe the layout, controls and visual style you need.');
+  // A new design shows the first preset's prompt, in English like every card prompt.
+  $('#prompt').placeholder = state.operation === 'create' ? PRESETS[0].brief : t(state.operation === 'redesign' ? 'Redesign this interface with a dark palette, clearer navigation and more compact spacing. Keep its content and images.' : 'For example: make the selected image 70% wide, move the heading below the description, or add search to this dashboard.');
   renderPagePicker();
 }
 function updateBuildAction() {
   const label = state.mode === 'demo' ? { create: 'Build offline demo', edit: 'Refine offline demo', redesign: 'Redesign offline demo' }[state.operation] : { create: 'Build with JEV', edit: 'Refine with JEV', redesign: 'Redesign with JEV' }[state.operation];
   let caption = t(label), note = t(state.mode === 'demo' ? 'DEMO MODE: local keyword rules, not JEV. Use this to try the editor and export without an API key.' : 'Your request is sent to TypeSafe or OpenRouter only when you build. An API key is required.');
+  if (state.hostedClient && state.mode === 'jev') {
+    const free = state.status.freeAllowance;
+    if (state.status.personalKeyConfigured) {
+      caption += ` · ${t('Your key')}`;
+      note = t('Using your API key. Provider charges apply. Your free allowance is not used.');
+    } else if (state.status.service === 'checking') {
+      caption += ` · ${t('Checking JEV')}`;
+      note = t('Checking free JEV availability. You can edit, save and export meanwhile.');
+    } else if (state.status.service === 'unavailable') {
+      caption += ` · ${t('JEV unavailable')}`;
+      note = t('The JEV service is unavailable right now. Editing, saving, export and Offline demo still work. Build again to retry.');
+    } else if (free.reason === 'resetting' && free.resetAt !== null) {
+      caption += ` · ${t('Free calls resume in {time}', { time: resetCountdown(free.resetAt) })}`;
+      note = t('Free JEV pauses during the last minute of each UTC day and resets at midnight UTC. Your own key, editing and Offline demo remain available.');
+    } else {
+      const count = t('{remaining}/{limit} free calls', { remaining: formatNumber(free.remaining), limit: formatNumber(free.limit) });
+      caption += ` · ${free.available || free.reason === 'exhausted' ? count : t('Free calls unavailable')}`;
+      if (free.available && free.remaining >= 2) note = t('Free JEV includes 10 provider calls per public IP address each UTC day, usually 5 designs. Each design reserves up to 2 calls. Availability depends on the provider.');
+      else {
+        caption += ` · ${t('Use your key')}`;
+        note = free.available || free.reason === 'exhausted' ? t('Free JEV: {remaining}/{limit} calls left. At least 2 calls are needed to start a design. Connect your own API key to continue, or try after midnight UTC.', { remaining: formatNumber(free.remaining), limit: formatNumber(free.limit) }) : t('Free JEV is currently unavailable. Connect your own TypeSafe or OpenRouter API key, or use Offline demo.');
+      }
+    }
+  }
   $('#build-button').innerHTML = `${icon('spark', 16)}<span>${e(caption)}</span>${icon('arrow', 17)}`;
   $('#mode-note').classList.toggle('demo', state.mode === 'demo');
   $('#mode-note').textContent = note;
+  syncResetTimer();
+}
+let resetTimer = null, resetRetryFor = null, resetRetryAt = 0, resetRetries = 0;
+function resetCountdown(resetAt) {
+  const seconds = Math.max(0, Math.ceil((resetAt - Date.now()) / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+// The funded daily pause shows a live countdown and rechecks status after the
+// reset. A client clock ahead of the server, a failed refresh or a superseded one
+// is retried with jitter, then about once a minute until the pause ends. Status
+// reads never contact the provider.
+function syncResetTimer() {
+  const free = state.status?.freeAllowance;
+  if (!state.hostedClient || free?.reason !== 'resetting' || !Number.isSafeInteger(free.resetAt)) { clearInterval(resetTimer); resetTimer = null; return; }
+  resetTimer ??= setInterval(() => {
+    const current = state.status?.freeAllowance;
+    if (current?.reason !== 'resetting') { clearInterval(resetTimer); resetTimer = null; return; }
+    if (resetRetryFor !== current.resetAt) { resetRetryFor = current.resetAt; resetRetryAt = current.resetAt + 1000; resetRetries = 0; }
+    if (Date.now() < resetRetryAt) { updateBuildAction(); return; }
+    resetRetries += 1;
+    resetRetryAt = Date.now() + (resetRetries < 6 ? 10000 : 60000) + Math.floor(Math.random() * 5000);
+    refreshStatus().catch(() => {});
+  }, 1000);
 }
 function offerPersonalKey(message) {
   if (message) setConnectionFeedback(message);
@@ -425,7 +535,7 @@ async function saveProject({ checkpoint = false, label = 'Saved checkpoint', sna
       try {
         result = await api(`/api/projects/${state.project.id}`, { method: 'PUT', data: { spec: snapshot, expectedRevision: state.project.revision, checkpoint, checkpointCurrent: snapshotCurrent, label } });
       } catch (error) {
-        if (error.status !== 404) throw error;
+        if (state.hostedClient || error.status !== 404) throw error;
         const previousId = state.project.id;
         result = await api('/api/projects', { method: 'POST', data: { spec: snapshot } });
         if (checkpoint) result = await api(`/api/projects/${result.id}`, { method: 'PUT', data: { spec: snapshot, expectedRevision: result.revision, checkpoint: true, checkpointCurrent: true, label } });
@@ -820,7 +930,7 @@ function renderPresentation(section) {
   const fields = sectionPresentationFields(section);
   if (!fields.length) return '';
   return `<details class="details-block section-presentation" open><summary>${e(t("Section presentation"))}</summary><p class="inspector-note">${e(t("Adjust this section independently of the page theme. A section lock preserves these choices during JEV requests."))}</p>${fields.map((key) => {
-    const selected = section.presentation[key], fieldId = `presentation-${section.id}-${key}`;
+    const selected = section.presentation[key] ?? 'default', fieldId = `presentation-${section.id}-${key}`;
     return `<div class="editor-field"><label for="${e(fieldId)}">${e(t(PRESENTATION_LABELS[key]))}</label><select id="${e(fieldId)}" data-presentation-section="${e(section.id)}" data-presentation-key="${key}" aria-describedby="${e(fieldId)}-hint">${options(PRESENTATION_OPTIONS[key], selected)}</select><p class="field-help" id="${e(fieldId)}-hint">${e(t(PRESENTATION[key][selected]))}</p></div>`;
   }).join('')}</details>`;
 }
@@ -840,7 +950,7 @@ function renderInterfaceControls(section) {
     return `<div class="editor-field"><label for="${e(fieldId)}">${e(t(control.label))}</label><select id="${e(fieldId)}" data-interface-section="${e(section.id)}" data-interface-key="${e(key)}" aria-describedby="${e(fieldId)}-hint">${options(control.options, selected)}</select><p class="field-help" id="${e(fieldId)}-hint">${e(t(control.description))}</p></div>`;
   }).join('')}</details>`;
 }
-const interfaceTypeLabels = { default: 'Component default', text: 'Text field', email: 'Email field', password: 'Password field', textarea: 'Text area', select: 'Select field', checkbox: 'Checkbox', number: 'Number field', date: 'Date field', stat: 'Metric', list: 'List entry', table: 'Table row', chart: 'Chart panel', form: 'Form panel', action: 'Action', product: 'Product', thread: 'Conversation', event: 'Event', task: 'Task' };
+const interfaceTypeLabels = { default: 'Component default', text: 'Text field', email: 'Email field', password: 'Password field', textarea: 'Text area', select: 'Select field', checkbox: 'Checkbox', number: 'Number field', date: 'Date field', stat: 'Metric', list: 'List entry', table: 'Table row', chart: 'Chart panel', form: 'Form panel', action: 'Action', product: 'Product', thread: 'Conversation', event: 'Event', task: 'Task', message: 'Message', toolcall: 'Tool call', citation: 'Citation', plan: 'Plan step', approval: 'Approval request', artifact: 'Artifact', meter: 'Usage meter' };
 function renderInterfaceItemFields(section, item, itemBase) {
   const fieldId = `interface-item-${section.id}-${item.id}`, values = Object.fromEntries(interfaceItemTypesFor(section).map((value) => [value, interfaceTypeLabels[value]]));
   const type = item.uiType || 'default', input = ['text', 'email', 'password', 'number', 'date'].includes(type);
@@ -852,10 +962,17 @@ function renderIconPicker(section, item, index) {
   const effective = itemIconName(item, index), fieldId = `item-icon-${section.id}-${index}`;
   return `<div class="editor-field"><label for="${e(fieldId)}">${e(t("Icon"))}</label><div class="item-icon-picker"><span class="item-icon-preview" aria-hidden="true">${effective && effective !== 'none' ? icon(effective, 20) : '—'}</span><select id="${e(fieldId)}" data-item-icon-section="${e(section.id)}" data-item-index="${index}" data-item-id="${e(item.id)}">${options(Object.fromEntries(Object.entries(CONTENT_ICONS).map(([name, value]) => [name, value.label])), item.icon || 'default')}</select></div></div>`;
 }
+// A manifest block shows title, description and exactly the item fields it declares, under its labels.
+function renderDeclaredItemFields(section, item, index, itemBase, declared) {
+  const icon = MANIFEST_BY_ID[section.block].parts.item.includes('icon') ? renderIconPicker(section, item, index) : '';
+  return `${icon}${field(`${itemBase}.title`, declared.title || (section.group === 'faq' ? 'Question' : 'Title'), item.title, { max: 180 })}${field(`${itemBase}.body`, declared.body || (section.group === 'faq' ? 'Answer' : section.group === 'pricing' ? 'Included features, one per line' : 'Description'), item.body, { multiline: true, max: 1800 })}${declared.meta ? field(`${itemBase}.meta`, declared.meta, item.meta, { max: 120 }) : ''}${declared.price ? field(`${itemBase}.price`, declared.price, item.price, { max: 80 }) : ''}${declared.href ? field(`${itemBase}.href`, declared.href, item.href, { max: 2048, live: false, hint: 'Link this item title to a page, section or HTTPS destination. Leave blank for no link.' }) : ''}`;
+}
 function renderItemCard(section, item, index, base) {
   const selected = state.selectedItemIndex === index, itemBase = `${base}.items.${index}`;
   const productImage = supportsProductImage(section, item.id) && !(selected && state.selectedPart === 'media') ? renderImageSize(section, item.id) + imageField(`${itemBase}.image`, item.image) + field(`${itemBase}.alt`, 'Image alternative text', item.alt, { max: 250 }) : '';
+  const declared = isInterfaceBlock(section) ? null : itemFieldsFor(section.block);
   const content = isInterfaceBlock(section) ? renderInterfaceItemFields(section, item, itemBase) + productImage
+    : declared ? `${renderDeclaredItemFields(section, item, index, itemBase, declared)}${imageOwner(section, item.id) && !(selected && state.selectedPart === 'media') ? renderImageSize(section, item.id) + imageField(`${itemBase}.image`, item.image) + field(`${itemBase}.alt`, 'Image alternative text', item.alt, { max: 250 }) : ''}`
     : `${section.group === 'features' && (!EXPANSION_BY_ID[section.block] || EXPANSION_BY_ID[section.block].behavior !== 'matrix') ? renderIconPicker(section, item, index) : ''}${field(`${itemBase}.title`, section.group === 'faq' ? 'Question' : 'Title', item.title, { max: 180 })}${field(`${itemBase}.body`, section.group === 'faq' ? 'Answer' : section.group === 'pricing' ? 'Included features, one per line' : 'Description', item.body, { multiline: true, max: 1800 })}${['gallery', 'pricing', 'features', 'about', 'contact', 'hero', ...EVIDENCE_GROUPS].includes(section.group) ? field(`${itemBase}.meta`, section.group === 'pricing' ? 'Billing / price label' : 'Small caption', item.meta, { max: 120 }) : ''}${['pricing', 'services', 'stats'].includes(section.group) ? field(`${itemBase}.price`, 'Price text', item.price, { max: 80 }) : ''}${['features', 'gallery', 'services', 'process', 'pricing', 'faq', 'about', 'contact', 'hero', ...EVIDENCE_GROUPS].includes(section.group) ? field(`${itemBase}.href`, section.group === 'gallery' ? 'Card link' : 'Item link', item.href, { max: 2048, live: false, hint: 'Link this item title to a page, section or HTTPS destination. Leave blank for no link.' }) : ''}${imageOwner(section, item.id) && !(selected && state.selectedPart === 'media') ? renderImageSize(section, item.id) + imageField(`${itemBase}.image`, item.image) + field(`${itemBase}.alt`, 'Image alternative text', item.alt, { max: 250 }) : ''}`;
   return `<div class="editor-card${selected ? ' selected-item' : ''}" data-editor-item-index="${index}" data-editor-item-id="${e(item.id)}" data-section-id="${e(section.id)}"><div class="editor-card-header">${renderMoveControls(state.spec, { pageId: state.activePageId, sectionId: section.id, itemId: item.id }, { compact: true })}<span>${e(t(selected ? 'ITEM {count} · SELECTED' : 'ITEM {count}', { count: formatNumber(index + 1, { minimumIntegerDigits: 2 }) }))}</span><button class="icon-button" data-remove-item="${e(section.id)}" data-item-index="${index}" data-item-id="${e(item.id)}" aria-label="${e(t('Remove item {count}', { count: formatNumber(index + 1) }))}"${section.locked ? ' disabled' : ''}>${icon('trash', 12)}</button></div><button class="item-context-button" data-select-item="${e(section.id)}" data-item-index="${index}" data-item-id="${e(item.id)}" aria-pressed="${selected}">${icon('cursor', 12)}${e(t(selected ? 'Using this item as request context' : 'Use this item in a request'))}</button>${renderPartControls(section, item)}${content}</div>`;
 }
@@ -907,11 +1024,23 @@ function renderWidgetControls(section) {
   }).join('');
   return '<details class="details-block" open><summary>' + e(t('Reusable elements')) + ' · ' + section.widgets.length + ' / 4</summary>' + cards + '<button type="button" class="button full-width" data-open-elements>' + e(t('Explore reusable elements')) + '</button></details>';
 }
+// The kept report is a snapshot; runner-ups are re-checked against the section as it is now,
+// both when they are listed and when one is clicked.
+function sectionAlternatives(section) {
+  if (!section) return [];
+  const entry = Array.isArray(state.report?.alternatives) ? state.report.alternatives.find((candidate) => candidate?.sectionId === section.id) : undefined;
+  return liveAlternatives(entry, section, blocksFor(section.group).map((block) => ({ id: block.id, screen: isInterfaceBlock(block.id) })));
+}
+function renderAlternatives(section) {
+  const alternatives = sectionAlternatives(section);
+  if (!alternatives.length) return '';
+  return `<div class="editor-field alternative-layouts"><p class="micro-label">${e(t('Alternative layouts'))}</p><div class="alternative-list">${alternatives.map(({ block, probability }) => `<button type="button" class="button small alternative-layout" data-alternative-block="${e(block)}"><span>${e(t(getBlock(block).name))}</span><small>${e(typeof probability === 'number' ? formatNumber(probability, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }) : t('by fit rules'))}</small></button>`).join('')}</div></div>`;
+}
 function renderContent() {
   const index = Math.max(0, state.spec.sections.findIndex((s) => s.id === state.selected)), s = state.spec.sections[index] || state.spec.sections[0], base = `sections.${index}`;
   if (!s) return `<div class="empty-page-inspector"><h2>${e(t('This page is empty.'))}</h2><p class="inspector-note">${e(t('Add a component to continue building. Deleted content can be recovered with Undo.'))}</p><button class="add-section" id="add-section-button">${icon('plus', 13)} ${e(t('Add a component'))}</button></div>`;
   const textSection = !['navigation', 'footer'].includes(s.group);
-  return `<details class="details-block" open><summary>${e(t("Brand & site settings"))}</summary>${field('name', state.activePageId === HOME_PAGE_ID ? 'Project name' : 'Page title', state.spec.name, { max: state.activePageId === HOME_PAGE_ID ? 100 : 80 })}<p class="inspector-note">${e(t("Brand name, contact details and primary link are shared by every page."))}</p>${field('brand.name', 'Brand name', state.spec.brand.name, { max: 100 })}${field('brand.tagline', 'Tagline / page description', state.spec.brand.tagline, { multiline: true, max: 250 })}${field('brand.email', 'Public contact email', state.spec.brand.email, { max: 254, type: 'email', live: false, hint: 'Used by contact links and email-draft forms.' })}${field('brand.cta', 'Primary button label', state.spec.brand.cta, { max: 100 })}${field('brand.href', 'Primary link', state.spec.brand.href, { max: 2048, live: false, hint: 'Choose a page or section above, or enter https://, mailto: or tel:.' })}${field('brand.language', 'HTML language code', state.spec.brand.language, { max: 20, live: false, hint: 'For example en, fi or sv. This does not translate the copy.' })}</details>${renderSelectionBreadcrumbs(s)}${renderPartControls(s)}${renderSelectedMedia(s, base)}<div class="content-heading"><h2>${e(t(sectionLabel(s)))}</h2><p>${e(t(getBlock(s.block).source))}</p></div><div class="editor-field"><label for="section-variant">${e(t("Component variant"))}</label><select id="section-variant" data-variant="${e(s.id)}">${options(Object.fromEntries(blocksFor(s.group).map((b) => [b.id, b.name])), s.block)}</select></div>${renderPresentation(s)}${renderElements(s)}${renderInterfaceControls(s)}${renderWidgetControls(s)}${textSection ? field(`${base}.eyebrow`, 'Small label', s.eyebrow, { max: 120 }) + field(`${base}.title`, isInterfaceBlock(s) ? 'Screen title' : 'Heading', s.title, { multiline: true, max: 300 }) : ''}${s.group !== 'navigation' ? field(`${base}.body`, s.group === 'footer' ? 'Footer description' : 'Description', s.body, { multiline: true, max: 3000 }) : `<p class="inspector-note">${e(t("Navigation links to sections on this page and pages marked to appear in navigation. Click a link in the preview to jump there. Use + in the navigation to add sections or pages."))}</p>`}${['hero', 'about', 'contact', 'cta', 'pricing'].includes(s.group) ? field(`${base}.button`, 'Button label', s.button, { max: 100 }) + (s.block === 'contact-form' || isInterfaceBlock(s) ? '' : field(`${base}.href`, 'Button destination', s.href, { max: 2048, live: false, hint: 'Leave blank to use the primary brand link.' })) : ''}${!isInterfaceBlock(s) && ['hero', 'about', 'cta'].includes(s.group) && state.selectedPart !== 'media' ? !imageOwner(s) ? `<p class="inspector-note">${e(t("This variant has no image area. Choose a split or framed component variant to show an uploaded image."))}</p>` : renderImageSize(s) + imageField(`${base}.image`, s.image) + field(`${base}.alt`, 'Image alternative text', s.alt, { max: 250 }) : ''}${s.block === 'contact-form' ? `<p class="inspector-note">${e(t("This form prepares an email draft using the public contact email in Brand settings. Choose the simple contact variant to use a custom button destination."))}</p>` : ''}${isInterfaceBlock(s) || s.items.length || ['features', 'gallery', 'services', 'process', 'pricing', 'faq'].includes(s.group) ? `<div class="section-divider"></div><div class="inspector-heading"><h2>${e(t(isInterfaceBlock(s) ? 'Fields & panels' : s.group === 'faq' ? 'Questions & answers' : 'Content items'))}</h2><span class="subtle">${s.items.length} / 8</span></div>${s.items.map((it, i) => renderItemCard(s, it, i, base)).join('')}<button class="add-section" data-add-item="${s.id}"${s.locked || s.items.length >= 8 ? ' disabled' : ''}>${icon('plus', 12)} ${e(t(isInterfaceBlock(s) ? 'Add field or panel' : 'Add item'))}</button>` : ''}<div class="draft-note ${s.draft ? '' : 'reviewed'}">${e(t(s.draft ? 'This section contains prepared draft copy. Replace examples and verify facts before publishing.' : 'You have marked this section as reviewed.'))}<label class="draft-toggle"><input type="checkbox" data-reviewed="${s.id}"${s.draft ? '' : ' checked'}/>${e(t("I have reviewed this section for publication."))}</label></div><button class="button full-width" data-back-design>${e(t("Back to page structure"))}</button>`;
+  return `<details class="details-block" open><summary>${e(t("Brand & site settings"))}</summary>${field('name', state.activePageId === HOME_PAGE_ID ? 'Project name' : 'Page title', state.spec.name, { max: state.activePageId === HOME_PAGE_ID ? 100 : 80 })}<p class="inspector-note">${e(t("Brand name, contact details and primary link are shared by every page."))}</p>${field('brand.name', 'Brand name', state.spec.brand.name, { max: 100 })}${field('brand.tagline', 'Tagline / page description', state.spec.brand.tagline, { multiline: true, max: 250 })}${field('brand.email', 'Public contact email', state.spec.brand.email, { max: 254, type: 'email', live: false, hint: 'Used by contact links and email-draft forms.' })}${field('brand.cta', 'Primary button label', state.spec.brand.cta, { max: 100 })}${field('brand.href', 'Primary link', state.spec.brand.href, { max: 2048, live: false, hint: 'Choose a page or section above, or enter https://, mailto: or tel:.' })}${field('brand.language', 'HTML language code', state.spec.brand.language, { max: 20, live: false, hint: 'For example en, fi or sv. This does not translate the copy.' })}</details>${renderSelectionBreadcrumbs(s)}${renderPartControls(s)}${renderSelectedMedia(s, base)}<div class="content-heading"><h2>${e(t(sectionLabel(s)))}</h2><p>${e(t(getBlock(s.block).source))}</p></div><div class="editor-field"><label for="section-variant">${e(t("Component variant"))}</label><select id="section-variant" data-variant="${e(s.id)}">${options(Object.fromEntries(blocksFor(s.group).map((b) => [b.id, b.name])), s.block)}</select></div>${renderAlternatives(s)}${renderPresentation(s)}${renderElements(s)}${renderInterfaceControls(s)}${renderWidgetControls(s)}${textSection ? field(`${base}.eyebrow`, 'Small label', s.eyebrow, { max: 120 }) + field(`${base}.title`, isInterfaceBlock(s) ? 'Screen title' : 'Heading', s.title, { multiline: true, max: 300 }) : ''}${s.group !== 'navigation' ? field(`${base}.body`, s.group === 'footer' ? 'Footer description' : 'Description', s.body, { multiline: true, max: 3000 }) : `<p class="inspector-note">${e(t("Navigation links to sections on this page and pages marked to appear in navigation. Click a link in the preview to jump there. Use + in the navigation to add sections or pages."))}</p>`}${['hero', 'about', 'contact', 'cta', 'pricing'].includes(s.group) ? field(`${base}.button`, 'Button label', s.button, { max: 100 }) + (s.block === 'contact-form' || isInterfaceBlock(s) ? '' : field(`${base}.href`, 'Button destination', s.href, { max: 2048, live: false, hint: 'Leave blank to use the primary brand link.' })) : ''}${!isInterfaceBlock(s) && ['hero', 'about', 'cta'].includes(s.group) && state.selectedPart !== 'media' ? !imageOwner(s) ? `<p class="inspector-note">${e(t("This variant has no image area. Choose a split or framed component variant to show an uploaded image."))}</p>` : renderImageSize(s) + imageField(`${base}.image`, s.image) + field(`${base}.alt`, 'Image alternative text', s.alt, { max: 250 }) : ''}${s.block === 'contact-form' ? `<p class="inspector-note">${e(t("This form prepares an email draft using the public contact email in Brand settings. Choose the simple contact variant to use a custom button destination."))}</p>` : ''}${isInterfaceBlock(s) || s.items.length || ['features', 'gallery', 'services', 'process', 'pricing', 'faq'].includes(s.group) ? `<div class="section-divider"></div><div class="inspector-heading"><h2>${e(t(isInterfaceBlock(s) ? 'Fields & panels' : s.group === 'faq' ? 'Questions & answers' : 'Content items'))}</h2><span class="subtle">${s.items.length} / 8</span></div>${s.items.map((it, i) => renderItemCard(s, it, i, base)).join('')}<button class="add-section" data-add-item="${s.id}"${s.locked || s.items.length >= 8 ? ' disabled' : ''}>${icon('plus', 12)} ${e(t(isInterfaceBlock(s) ? 'Add field or panel' : 'Add item'))}</button>` : ''}<div class="draft-note ${s.draft ? '' : 'reviewed'}">${e(t(s.draft ? 'This section contains prepared draft copy. Replace examples and verify facts before publishing.' : 'You have marked this section as reviewed.'))}<label class="draft-toggle"><input type="checkbox" data-reviewed="${s.id}"${s.draft ? '' : ' checked'}/>${e(t("I have reviewed this section for publication."))}</label></div><button class="button full-width" data-back-design>${e(t("Back to page structure"))}</button>`;
 }
 function renderAppliedChanges(report) {
   const changes = report.changes;
@@ -1147,6 +1276,12 @@ async function refreshPastProjects() {
   if (!state.pastProjectsLoaded && !state.pastProjects.length && $('#past-projects-list')) {
     $('#past-projects-list').innerHTML = `<p class="muted-message">${e(t("Reading local projects…"))}</p>`;
   }
+  if (state.hostedClient) {
+    const result = await api('/api/projects');
+    state.pastProjects = result.projects; state.pastProjectsSkipped = result.skipped || 0; state.pastProjectsLoaded = true; state.projectsResult = result;
+    renderPastProjects(); if ($('#projects-dialog')?.open) renderProjectList();
+    return result;
+  }
   const [apiResult, idbProjects] = await Promise.all([api('/api/projects').catch(() => null), idbListProjects()]);
   const byId = new Map();
   if (apiResult?.projects) {
@@ -1190,6 +1325,7 @@ async function loadProject(projectId) {
     project = await api(`/api/projects/${projectId}`);
     await idbPutProject(project, project.spec);
   } catch (error) {
+    if (state.hostedClient) throw error;
     if (error.status === 404) { await idbDeleteProject(projectId); throw error; }
     const cached = await idbGetProject(projectId);
     if (!cached) throw error;
@@ -1211,8 +1347,13 @@ async function newProject() {
 async function submitDesign(event) {
   event.preventDefault(); if (state.busy) return;
   const prompt = $('#prompt').value.trim(); if (prompt.length < 3) { $('#prompt').reportValidity(); return; }
+  if (state.hostedClient && state.mode === 'jev' && (state.status.service !== 'ready' || !state.status.personalKeyConfigured && (!state.status.configured || state.status.freeAllowance.resetAt !== null && state.status.freeAllowance.resetAt <= Date.now()))) {
+    await refreshStatus().catch(() => {});
+    if (state.busy) return;
+  }
   // An unavailable API never falls back to demo output; demo stays an explicit choice.
-  if (state.mode === 'jev' && !state.status?.configured) { offerPersonalKey(''); toast('Connect a TypeSafe or OpenRouter API key, then build your site. Offline demo is available without a key.'); return; }
+  if (state.hostedClient && state.mode === 'jev' && state.status.service !== 'ready') { toast('The JEV service is unavailable right now. Editing, saving, export and Offline demo still work. Build again to retry.', 'error'); return; }
+  if (state.mode === 'jev' && !state.status?.configured) { offerPersonalKey(state.hostedClient ? state.status.freeAllowance.reason === 'resetting' ? 'Free JEV pauses during the last minute of each UTC day and resets at midnight UTC. Your own key, editing and Offline demo remain available.' : 'Free JEV is currently unavailable. Connect your own TypeSafe or OpenRouter API key, or use Offline demo.' : ''); toast('Connect a TypeSafe or OpenRouter API key, then build your site. Offline demo is available without a key.'); return; }
   const newDesign = state.operation === 'create';
   let designApplied = false, designSaved = false;
   state.controller = new AbortController(); setBusy(true); showPanel('canvas');
@@ -1242,7 +1383,7 @@ async function submitDesign(event) {
     activity(state.mode === 'demo' ? 'Demo request complete.' : 'Design request complete.', changeSummary, false, { count: Number.isInteger(appliedCount) ? appliedCount : state.spec.sections.length });
     toast(newDesign ? 'New project saved. Your previous project is still available in Projects.' : appliedCount === 0 ? 'Request complete. No changes were applied; see Decisions for details.' : state.mode === 'demo' ? 'Demo ready. This used local rules, not JEV.' : 'Design ready. Your previous version is kept as a checkpoint.', 'success');
     if (!previewReady) toast('The design is saved. Select Preview to retry loading the canvas.', 'error');
-    if (state.mode === 'jev') { state.status.verified = true; updateConnection(); }
+    if (state.mode === 'jev') { if (!state.hostedClient) state.status.verified = true; updateConnection(); }
     $('#prompt').value = ''; updatePromptCounter();
   } catch (error) {
     if (designApplied) {
@@ -1251,7 +1392,7 @@ async function submitDesign(event) {
       activity(designSaved ? 'Design saved; editor update incomplete.' : 'Design applied; local save incomplete.', message, true, { message: error.message });
       toast(t(message, { message: error.message }), 'error');
     } else if (error.name === 'AbortError') { activity('Request cancelled.', 'Your site was not replaced. A provider call already sent may still be billed.'); toast('Request cancelled.'); }
-    else { activity('Design request did not finish.', error.message, true); toast(error.message, 'error'); }
+    else { activity('Design request did not finish.', error.message, true); toast(error.message, 'error'); if (state.hostedClient && ['free_limit', 'free_unavailable', 'free_paused', 'verification_required', 'credentials'].includes(error.code)) offerPersonalKey(error.message); }
   } finally {
     state.controller = null;
     if (newDesign && designApplied && !state.displayed) { $('#preview-frame').srcdoc = ''; state.source = ''; $('#source-code').textContent = ''; }
@@ -1311,6 +1452,14 @@ document.addEventListener('click', async (event) => {
       else toast('This destination changed. Choose a current library destination.');
       return;
     }
+    if (button.dataset.alternativeBlock !== undefined) {
+      // Never trust the button: re-check the live section, then apply through the component
+      // change of the inspector, which works in Inspect and Interact and explains a refusal.
+      const section = state.spec.sections.find((entry) => entry.id === state.selected), blockId = button.dataset.alternativeBlock;
+      if (!sectionAlternatives(section).some((entry) => entry.block === blockId)) { toast('This layout is no longer available for this section.'); return; }
+      addSection(section.group, blockId, { sectionId: section.id });
+      return;
+    }
     if (button.dataset.applyLibraryEntry) {
       const entry = JSON.parse(button.dataset.applyLibraryEntry);
       const choice = libraryOptions(state.spec, entry, state.activePageId, t).find(({ proposal }) => proposal.sectionId === state.selected && (proposal.itemId || null) === state.selectedItemId);
@@ -1339,7 +1488,7 @@ document.addEventListener('click', async (event) => {
     if (button.dataset.device) { state.device = button.dataset.device; $$('[data-device]').forEach((b) => b.classList.toggle('active', b === button)); resizePreview(); return; }
     if (button.dataset.preset !== undefined && !state.busy) {
       const preset = PRESETS[Number(button.dataset.preset)];
-      $('#prompt').value = `Brand: ${JSON.stringify(preset.brand)}\n${preset.brief}`; updatePromptCounter(); $('#operation').value = 'create'; updateMode(); $('#prompt').focus(); return;
+      $('#prompt').value = presetPrompt(preset); updatePromptCounter(); $('#operation').value = 'create'; updateMode(); $('#prompt').focus(); return;
     }
     if (button.dataset.palette) { commit((spec) => { spec.theme.palette = button.dataset.palette; }, 'Change palette'); return; }
     if (button.dataset.lockSetting && !state.busy) { const key = button.dataset.lockSetting; state.locks[key] = !state.locks[key]; renderInspector(); return; }
@@ -1385,7 +1534,8 @@ document.addEventListener('click', async (event) => {
       try {
         snapshot = await api(`/api/projects/${state.project.id}/history/${button.dataset.restoreHistory}`);
       } catch (error) {
-            const cached = await idbGetProject(state.project?.id);
+        if (state.hostedClient) throw error;
+        const cached = await idbGetProject(state.project?.id);
         snapshot = cached?.history?.find((entry) => entry.id === button.dataset.restoreHistory);
         if (!snapshot?.spec) throw error;
       }
@@ -1433,7 +1583,7 @@ document.addEventListener('click', async (event) => {
         try { const zip = await api('/api/export', { method: 'POST', data: { spec: state.site }, blob: true }); downloadBlob(zip, filename('.website.zip')); $('#export-dialog').close(); toast('Website exported.', 'success'); }
         finally { button.disabled = false; } break;
       }
-      case 'disconnect-button': { const removedAt = Date.now(); forgetKey(); try { await api('/api/connection', { method: 'DELETE' }); } finally { signalKeyRemoval(removedAt); } } $('#api-key').value = ''; await refreshStatus(); setConnectionFeedback('Key removed from this browser and the local server. Environment keys stay disabled until restart.'); break;
+      case 'disconnect-button': { const removedAt = Date.now(); forgetKey(); try { await api('/api/connection', { method: 'DELETE' }); } finally { signalKeyRemoval(removedAt); } } $('#api-key').value = ''; await refreshStatus(); setConnectionFeedback(state.hostedClient ? 'Key removed from this browser.' : 'Key removed from this browser and the local server. Environment keys stay disabled until restart.'); break;
     }
   } catch (error) { toast(error.message || 'This action could not be completed.', 'error'); }
 });
@@ -1456,8 +1606,13 @@ function commitPresentation(target) {
   const sectionId = target.dataset.presentationSection, key = target.dataset.presentationKey;
   const section = state.spec.sections.find((candidate) => candidate.id === sectionId);
   if (!section || !sectionPresentationFields(section).includes(key) || !Object.hasOwn(PRESENTATION[key], target.value)) throw new Error(t("Unsupported section presentation choice."));
-  const applied = commit((spec) => { spec.sections.find((candidate) => candidate.id === sectionId).presentation[key] = target.value; }, `Change ${PRESENTATION_LABELS[key].toLowerCase()}`);
-  if (!applied) target.value = section.presentation[key];
+  const applied = commit((spec) => {
+    // An optional axis is stored only when used: choosing `default` removes the key.
+    const presentation = spec.sections.find((candidate) => candidate.id === sectionId).presentation;
+    if (OPTIONAL_PRESENTATION.includes(key) && target.value === 'default') delete presentation[key];
+    else presentation[key] = target.value;
+  }, `Change ${PRESENTATION_LABELS[key].toLowerCase()}`);
+  if (!applied) target.value = section.presentation[key] ?? 'default';
 }
 function commitElement(target) {
   const sectionId = target.dataset.elementSection, key = target.dataset.elementKey;
@@ -1613,13 +1768,24 @@ document.addEventListener('forma-cancel-move', () => libraryDrag.cancel());
 async function boot() {
   hydrateIcons();
   translateStatic(); renderStarters(); syncCookieBanner();
-  $('#prompt').value = PRESETS[0].brief; updatePromptCounter();
+  updatePromptCounter();
   updateMode(); renderInspector(); renderPastProjects(); updateHeader();
+  if (DEPLOYMENT === 'hosted') {
+    // Browser-saved projects, manual editing and export never wait for the API.
+    // Live JEV initializes separately and shows a checking/unavailable state.
+    try {
+      await initHostedClient(); await restoreKey();
+      const live = refreshStatus().catch(() => { if (state.status.service === 'unavailable') toast('The JEV service is unavailable right now. Editing, saving, export and Offline demo still work. Build again to retry.', 'error'); });
+      try { await openInitialProject(); } catch (error) { toast(error.message, 'error'); }
+      await live;
+    } catch (error) { toast(error.message, 'error'); }
+    return;
+  }
   try {
     await refreshStatus();
     if (await restoreKey()) await refreshStatus();
     await openInitialProject();
-  } catch (error) { toast(t('Startup: {message} Keep the Node.js server running and reload this page.', { message: error.message }), 'error'); }
+  } catch (error) { toast(state.hostedClient || location.protocol === 'https:' ? error.message : t('Startup: {message} Keep the Node.js server running and reload this page.', { message: error.message }), 'error'); }
 }
 async function openInitialProject() {
   await refreshPastProjects();

@@ -87,9 +87,21 @@ export const getBlock = (id) => CATALOG.find((block) => block.id === id);
 export const blocksFor = (group) => CATALOG.filter((block) => block.group === group);
 export const DEFAULT_BLOCKS = Object.fromEntries(GROUPS.map((group) => [group, blocksFor(group)[0].id]));
 export const DEFAULT_THEME = { palette: 'porcelain', font: 'modern', density: 'balanced', radius: 'soft', motion: 'none', typeScale: 'balanced', width: 'standard', style: 'default' };
+// The first preset's brief is the request box placeholder.
 export const PRESETS = [
+  { name: 'AI product', brand: 'Lumen', icon: 'lightbulb', brief: 'Lumen, an AI product for writing: a landing page with a prompt box introduction, a scripted conversation, statistic cards, pricing, FAQ and a closing call to action. Warm voice copy, ocean blue, clean sans headings. No animation.' },
   { name: 'Creative studio', brand: 'Studio North', icon: 'spark', brief: 'An editorial website for a small design studio. Warm ivory background, elegant serif headings, a split hero, selected work gallery, services, our process, FAQ and contact. No pricing. No animation.' },
   { name: 'Software product', brand: 'Orbit', icon: 'grid', brief: 'A dark modern SaaS landing page with a centered hero, bento features, a three-step workflow, pricing tiers, FAQ and a final call to action. Lime accents. No gallery.' },
-  { name: 'Coastal stay', brand: 'Stillwater', icon: 'sun', brief: 'A calm editorial website for a coastal holiday apartment. Sage greens, generous spacing, a wide hero image, about the space, a photo gallery, amenities, FAQ and a contact form. No subscriptions or pricing tiers.' },
-  { name: 'Independent portfolio', brand: 'Alex Morgan', icon: 'frame', brief: 'A minimal monochrome designer portfolio. Editorial hero, featured work gallery, a short about statement and simple contact. Square corners. No pricing, no FAQ, no animation.' }
+  { name: 'Developer tool', brand: 'Relay', icon: 'code', brief: 'A website for Relay, a developer tool and API for software teams: integrations, a code showcase, a changelog timeline, pricing, FAQ and a closing call to action. Monospace headings, compact spacing, square corners.' },
+  { name: 'Coastal stay', brand: 'Stillwater', icon: 'sun', brief: 'A website for a small coastal guesthouse: rooms, amenities, our story, testimonials, FAQ and opening hours with the address. Sage green, elegant serif headings, generous spacing.' },
+  { name: 'Independent portfolio', brand: 'Alex Morgan', icon: 'frame', brief: 'A minimal monochrome designer portfolio. Editorial hero, featured work gallery, a short about statement and simple contact. Square corners. No pricing, no FAQ, no animation.' },
+  { name: 'Restaurant', brand: 'Corner Table', icon: 'leaf', brief: 'A warm website for a neighborhood restaurant. Clay colors, elegant serif headings, a full-bleed photo introduction, the menu with prices to fill in, a few photos, our story, opening hours with the address and contact. No pricing tiers. No animation.' },
+  { name: 'Conference', brand: 'Northfield Summit', icon: 'users', brief: 'A website for Northfield Summit, a two-day design conference. Bold voice copy, dark background, modern sans headings. Include stats, the speakers, the schedule, tickets, partner logos, FAQ and a closing call to action. No animation.' },
+  { name: 'Agent run', brand: 'Atlas', icon: 'bolt', brief: 'Build the agent run screen for a research assistant.' },
+  { name: 'Chat with artifact', brand: 'Lumen', icon: 'layers', brief: 'Build the chat with artifact screen for a writing assistant.' },
+  { name: 'Agent inbox', brand: 'Harbor', icon: 'mail', brief: 'Build the agent inbox screen for customer support.' },
+  { name: 'Usage and limits', brand: 'Quanta', icon: 'chart', brief: 'Build the usage and limits screen for an AI workspace, dark theme.' },
+  { name: 'Agent setup', brand: 'Forge', icon: 'settings', brief: 'Build the agent setup screen for a new coding agent.' }
 ];
+/** The request text a preset puts in the request box: its brand as an exact field, then its brief. */
+export const presetPrompt = (preset) => `Brand: ${JSON.stringify(preset.brand)}\n${preset.brief}`;

@@ -1,22 +1,35 @@
-# Forma - JEV-aided Website Site Studio
+# Forma — JEV Site Studio
 
 Free (with limits) hosted <a href="https://forma.gptchatly.com/">Forma Editor</a>
 
-A local-first website and application UI builder aided by JEV-classifier. Describe a website or
+A runnable, local-first website and application UI builder. Describe a website or
 frontend; JEV selects its design settings, component variants, typed fields and
 panels, internal UI elements and section order. Edit the result, save projects,
 and export standalone HTML.
 
-<p align="center">
-  <img src="./Forma_video_intro.gif" alt="Forma JEV-based website editor Intro" width="800" />
-</p>
+Run the native local app below, or deploy the separate hosted edition on Vercel
+behind Cloudflare using [the production guide](docs/PRODUCTION.md). The hosted
+edition needs no account: projects stay in the current browser profile. When the
+operator funds access, visitors can use up to 10 real JEV calls per IP per UTC day;
+otherwise they can connect their own provider key. Hosted sessions and durable quotas
+protect its limited API; the local server remains bound to loopback. When the operator
+enables it, the hosted edition runs a Cloudflare Turnstile browser check before the
+first key test or live build in a session; that check loads a script from Cloudflare.
+
+**This is an application, not a mockup.** The Live JEV mode calls the official
+TypeSafe or OpenRouter JEV API. The separate Offline demo mode uses simple local
+rules and is always labeled as a demonstration. No key, account or external service
+is needed to try the editor and export flow in demo mode.
+
+The **Components** tab includes **24 reusable elements**, **12 coordinated styles**,
+**12 palettes** and **8 editable example projects**, with sandboxed live previews.
+Body sections can repeat. See [the expansion guide](docs/UI-EXPANSION.md) for the
+full inventory, editing workflow and reference licenses.
 
 ## Start on Windows
 
-1. Have **Node.js 18.17 or newer** installed; any later version works except the
-   short-lived 19.x and 20.0ÔÇô20.2 releases. Forma prints
-   a one-line notice, but still starts, on a release older than the security
-   updates it was reviewed with (24.21.0 in 24.x, 22.23.3 in 22.x).
+1. Install the latest patched **Node.js 24 LTS** (minimum 24.21.0), or Node.js
+   **22 LTS** (minimum 22.23.3). Startup rejects older or unsupported runtimes.
 2. Extract the entire ZIP to a normal folder. Do not run it inside the ZIP viewer.
 3. Double-click **`start.cmd`**. Keep its terminal window open.
 4. The app opens at **http://127.0.0.1:4318**.
@@ -51,14 +64,25 @@ for evaluating the live model.
 
 ## What is included
 
-- 40 editable, free MIT-licensed components across 12 section families: navigation,
+- 132 editable, free MIT-licensed components across 16 section families: navigation,
   hero, features, about, services, gallery, process, pricing, FAQ, contact, CTA and footer.
 - Application screens for login, signup, chat, dashboards, tables, boards, settings,
   inboxes, calendars, storefronts, checkout and document editing, plus a custom
   workspace combining typed fields, lists, metrics, products and actions.
+- An AI application set of five screens (agent run, chat with artifact, agent inbox,
+  usage and limits, agent setup) and two website blocks (prompt box introduction,
+  scripted conversation), with seven item types (message, tool call, citation, plan,
+  approval, artifact, meter). All are prepared demonstrations: each shows the caption
+  "Prepared demonstration", no model is connected and no usage figure is real.
 - HyperUI-derived pricing, card/gallery, FAQ and CTA blocks, plus original
   theme-aware compositions. These are local HTML/CSS implementations, not a React
   or Tailwind package downloaded at runtime. License notices are included.
+- Page recipes, optional section backdrops and heading layouts, wider column and
+  image-placement controls, three prepared copy voices and suggested reusable
+  elements. JEV only selects among these existing designs and prepared wording.
+  Projects that use none of them stay readable by the previous version; projects that
+  do need this version or later, and `node scripts/compat-check.mjs <commit>` checks
+  that against an earlier commit. See `docs/ARCHITECTURE.md`.
 - Six coordinated palettes, three typography presets, heading scale and page width,
   spacing and corner controls, plus explicit motion settings. Sections have their
   own background, alignment, spacing, card treatment and image proportions.
@@ -131,23 +155,23 @@ not an access-control mechanism.
 ### Arrange content directly
 
 In **Inspect**, click content and use its selection breadcrumb to choose the
-section, card or inner part. Drag the grip or open **MoveÔÇª**. Navigation, Hero and
+section, card or inner part. Drag the grip or open **Move…**. Navigation, Hero and
 Footer stay anchored; locked sections stay in their structural slots and their
 contents require unlocking before structural moves. Ordinary text, icon and
 settings edits remain available. Each completed move is one Undo step.
 
 Select a hero image to move it before/after the text. Hero, split-about, gallery
-and uploaded application product images have a corner resize handle in Inspect. **Resize imageÔÇª** opens keyboard
-controls for width (25ÔÇô100% of its area), height (80ÔÇô1200 px, or Auto), and image fit.
+and uploaded application product images have a corner resize handle in Inspect. **Resize image…** opens keyboard
+controls for width (25–100% of its area), height (80–1200 px, or Auto), and image fit.
 Choose **Show whole image** to avoid cropping, or **Reset image size** to restore
 the component defaults. Unlock the section before resizing. Each completed resize
 is one Undo step, and the size persists in saved projects and exports.
-**Edit imageÔÇª** also opens upload, replacement and alternative-text controls.
+**Edit image…** also opens upload, replacement and alternative-text controls.
 Centered heroes remain text-only.
 Move menus stay inside the preview, including narrow or scaled canvases.
 
 In the library, drag a component's grip onto a compatible canvas position, or use
-**Insert or replaceÔÇª**. An existing section family can change component while
+**Insert or replace…**. An existing section family can change component while
 retaining its content. Switching application screen types installs the new screen's
 prepared fields; Undo restores the previous screen. Feature and button icon groups offer explicit replacements;
 pricing-card button icons can be changed individually. The destination menus are
@@ -205,6 +229,15 @@ Inspect the applied changes in **Decisions**. Select any section to adjust its
 presentation manually, or undo the request. Named directions and visitor journeys
 are bounded design choices, not generated prose or a visual quality assessment.
 
+Each website component has fit data: the item counts and text lengths it suits, its
+image use and the directions and site categories it suits. In a new design or a
+redesign, JEV first picks a layout pattern for the large families, then chooses among a
+short, ranked list whose options state their fit in words. After a design request, a
+selected section can show **Alternative layouts**: the runner-ups of that request,
+with JEV's probability or, in Offline demo, "by fit rules". One click applies one and
+keeps the section's copy, images and items; Undo reverts it. They disappear once the section can no longer take
+them without losing content, for example after it was replaced by an application screen.
+
 See [the research and roadmap](docs/REDESIGN-RESEARCH.md) for the ideas adapted from
 json-render, Relume, Puck, GrapesJS, Onlook and Framer, and the next architectural
 steps beyond this implementation.
@@ -216,7 +249,7 @@ code. The initial text is **prepared draft copy**, not a claim about your busine
 JEV can use the same image sizing and supported movement controls as the editor.
 For example: `Make this image 60% wide and 387px tall`, `Move gallery before
 services`, `Move the third feature card first`, or `Move this item's description
-before its heading`. Select an image or element for ÔÇ£thisÔÇØ references; named
+before its heading`. Select an image or element for “this” references; named
 sections and ordinal items also work as request context. Requests support up to
 four targeted actions; one resize can set width, height and fit together. Locks,
 fixed sections and compatible-transfer rules apply. Images remain local; JEV
@@ -293,12 +326,15 @@ this builder does not implement that service.
 ## API key and configuration
 
 The easiest option is **Connect JEV** in the app. You can paste either a TypeSafe
-API key or an OpenRouter API key (`sk-or-v1-...`). In the local app, the key is held
-in the running Node.js server's memory; restarting clears a dialog-entered key.
-In hosted mode, it stays in the current tab's memory and travels through the
-hosted backend only for that tab's explicit connection or live-design request.
-It is never saved in localStorage, IndexedDB, project files or quota records.
-Reloading or closing the hosted tab clears it. The hosting operator and provider
+API key or an OpenRouter API key (`sk-or-v1-...`). After a successful connection
+test, the key is saved in this browser's localStorage so you don't have to enter
+it again; **Remove key** in Connect JEV deletes it, also from other open Forma
+tabs. Opening Forma restores it
+without a provider request: the local app returns it to the running Node.js
+server's memory, and the hosted editor keeps it in the tab's memory and sends it
+through the hosted backend only for explicit connection or live-design requests.
+It is never saved in IndexedDB, project files, exports or quota records. Anyone
+using the same browser profile can read it, so remove it on shared computers. The hosting operator and provider
 necessarily process a supplied key; use an operator you trust and provider spend
 limits. A connection test makes a small real API request.
 In hosted mode, an operator may fund a limited free allowance. The JEV control
@@ -331,8 +367,10 @@ DATA_DIR=.data
 ```
 
 Local shell environment variables take precedence. `.env.local` is loaded before `.env`.
-A disconnect disables both the in-memory key and the environment key for the
-current process; restart to reload an environment key. Never share a real `.env`.
+A key saved in the browser returns to server memory on page load and takes
+precedence over an environment key. Remove key deletes the saved key and disables
+both the in-memory key and the environment key for the current process; restart
+to reload an environment key. Never share a real `.env`.
 
 Live requests use the fixed endpoint `https://api.typesafe.ai/v1/systemone` for
 TypeSafe keys (default model `jev-1.13.0`) or `https://openrouter.ai/api/v1/systemone`
@@ -350,7 +388,7 @@ saved version. Up to 10 checkpoints and approximately 20 MB of checkpoint payloa
 are retained per project; export important versions to keep them indefinitely.
 
 The workspace supports up to 100 projects. Each specification supports at most
-eight pages including Home, 12 sections per page (one per section family), and
+eight pages including Home, 12 sections per page (repeatable body sections; one navigation, hero and footer), and
 eight items per section. The complete multi-page specification
 is capped at 4 million JSON characters, with a local HTTP body cap of 4.4 MB.
 Hosted live compose has a separate 2 MB image-free request cap. Image uploads
@@ -405,7 +443,9 @@ The local editor binds only to **127.0.0.1**. Its API routes check an applicatio
 token and Host/Origin. The hosted edition uses signed guest-session cookies,
 exact HTTPS origin checks, session-bound CSRF tokens, a mandatory Cloudflare
 origin secret and atomic Redis quotas. Guest cookies identify a browser session;
-they are not user accounts or proof that requests came from a human.
+they are not user accounts or proof that requests came from a human. An optional
+Cloudflare Turnstile check raises the cost of automated live use; it is not proof of
+a unique person either.
 
 Static routes and hosted build assets are explicitly allowlisted. User strings are
 escaped, links and image types are restricted, and arbitrary HTML, JavaScript,
@@ -440,11 +480,14 @@ Use the hosted deployment boundary for public access. Hosted limits survive
 function restarts; missing quota infrastructure fails closed. Cloudflare/Vercel
 configuration and real deployment checks remain necessary before public use.
 The operator's `QWEN3_LIMIT` defaults to 10 provider-call units per minute for
-each session + transport IP and each personal provider key. A connection test
-uses one unit; a live composition reserves two. Optional free access has its own
+each session + transport IP and each personal provider key. A live composition
+reserves two units. Connect JEV must verify a personal key before it can build;
+key tests have their own replenishing limits. Optional free access has its own
 10-call IP/day limit and an operator-funded deployment budget, defaulting to 500
-calls/day. Separate shared and deployment-wide limits also apply; see the
-production guide before enabling operator-funded access.
+calls/day, and pauses new designs in the last minute of each UTC day. Separate
+replenishing global limits also apply; see the production guide before enabling
+operator-funded access. Browser-saved projects, editing and export keep working
+when the hosted API is unavailable.
 
 See [production and release operations](docs/PRODUCTION.md) and
 [the security policy](SECURITY.md) for supported deployment, data retention,
@@ -485,13 +528,9 @@ JEV call was made; these checks do not establish the model's actual design quali
 
 ## Troubleshooting
 
-**The window closes / Node is missing:** install Node.js 18.17 or newer, reopen
-your terminal and run `node --version`. Run `node server/index.mjs` from the app
-folder to see errors.
-
-**Startup prints "Note: Node.js ÔÇª is older than the reviewed security baselineÔÇª":** Forma is
-running normally. Your Node.js misses security fixes that later releases in its
-line include; update it when convenient.
+**The window closes / Node is missing:** install a supported patched Node.js LTS
+version listed above, reopen your terminal and
+run `node --version`. Run `node server/index.mjs` from the app folder to see errors.
 
 **Port already used:** run `stop.cmd` for an existing Forma instance, or set another
 `PORT` in `.env`. Do not kill unrelated Node.js services.
@@ -539,3 +578,10 @@ and does not limit the MIT source license. See [CONTRIBUTING.md](CONTRIBUTING.md
 The complete source is included. See `docs/ARCHITECTURE.md`, `AGENTS.md` and
 `THIRD_PARTY_NOTICES.md`. The original builder code is MIT licensed. TypeSafe/JEV
 are third-party services and are not included under this repository's license.
+
+The component library includes native spotlight cards, revealing services,
+swipeable and fanned galleries, stacked process cards, animated actions, sliding
+application tabs and opt-in section entrances. Preview any component in the Library
+at desktop or mobile width without changing your project. Choose the motion setting
+in Design to enable decorative effects. See [the interaction guide](docs/INTERACTIONS.md)
+for behavior, accessibility fallbacks and provenance.

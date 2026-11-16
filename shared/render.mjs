@@ -3,10 +3,10 @@
  * Utility classes are replaced with local theme-aware CSS; content is escaped.
  */
 import { escapeHtml as e, validateSpec, validatePageSpec } from './schema.mjs';
-import { THEMES, FONTS, GROUPS, GROUP_LABELS } from './catalog.mjs';
+import { THEMES, FONTS, GROUPS, GROUP_LABELS, CATALOG } from './catalog.mjs';
 import { presentationFieldsFor } from './design.mjs';
 import { icon, itemIconName } from './icons.mjs';
-import { elementFieldsFor } from './elements.mjs';
+import { elementFieldsFor, mediaSideFor } from './elements.mjs';
 import { BUTTON_LABELS } from './ui-catalog.mjs';
 import { effectivePartOrder, effectivePlacement, effectiveButtonIcon } from './slots.mjs';
 import { imageSizeOf } from './media.mjs';
@@ -14,7 +14,9 @@ import { isInterfaceBlock, INTERFACE_BLOCKS } from './interfaces.mjs';
 import { renderInterface } from './interface-render.mjs';
 import { noticeComment } from './notices.mjs';
 import { renderExpansion, renderWidgets } from './expansion-render.mjs';
-import { ANCHORED_GROUPS } from './expansion.mjs';
+import { ANCHORED_GROUPS, EXPANSION_BLOCKS } from './expansion.mjs';
+import { BLOCK_MANIFESTS } from './blocks.mjs';
+import { filterCss } from './page-css.mjs';
 import { isPartVisible } from './parts.mjs';
 import { HOME_PAGE_ID, MAX_PAGES, PAGE_TEMPLATES, getPageSpec, pageEntries, pageFilename } from './pages.mjs';
 function mainIdFor(spec) {
@@ -143,7 +145,9 @@ function sectionBody(s, spec, context) {
   if (s.group === 'features') return `<div class="site-container">${heading(s, context)}<div class="feature-grid">${s.items.map((it, i) => `<article class="feature-card${itemIconName(it, i) === 'none' || !isPartVisible(it, 'icon') ? ' no-icon' : ''}"${itemAttributes(it, i, context)}${effectivePlacement(s, it, 'iconPlacement') !== 'default' ? ` data-icon-placement="${e(effectivePlacement(s, it, 'iconPlacement'))}"` : ''}>${featureIcon(it, i, context)}<div class="item-text">${itemText(s, it, spec, context)}</div>${s.block === 'features-bento' && i === 0 && shown(s, 'decoration') && isPartVisible(s, 'decoration') && isPartVisible(it, 'decoration') ? `<div class="bento-lines" aria-hidden="true"${partAttributes('decoration', 'item', context, it)}><span></span><span></span><span></span><span></span></div>` : ''}</article>`).join('')}</div></div>`;
   if (s.group === 'about') {
     const visual = s.block === 'about-split' && isPartVisible(s, 'media') ? `<div ${mediaAttributes('about-visual', s, context)}${partAttributes('media', 'about-media', context)}>${imageOrArt(s.image, s.alt, 1)}</div>` : '';
-    return `<div class="site-container about-inner${visual ? '' : ' without-media'}">${visual}<div><div class="section-heading authored-content">${contentHeading(s, context, shown(s, 'primaryAction', !!s.button) ? link(s.button, s.href, spec, context, true, s, null, true) : '')}</div></div></div>`;
+    const copy = `<div><div class="section-heading authored-content">${contentHeading(s, context, shown(s, 'primaryAction', !!s.button) ? link(s.button, s.href, spec, context, true, s, null, true) : '')}</div></div>`;
+    // `default` keeps this block's base order, image first (mediaDefaultFor); `after` puts the copy first.
+    return `<div class="site-container about-inner${visual ? '' : ' without-media'}">${mediaSideFor(s) === 'after' ? `${copy}${visual}` : `${visual}${copy}`}</div>`;
   }
   if (s.group === 'services') return `<div class="site-container">${heading(s, context)}<div class="service-grid">${s.items.map((it, i) => {
     const number = shown(s, 'numbering') && isPartVisible(it, 'number');
@@ -184,7 +188,7 @@ function sectionBody(s, spec, context) {
     const hasForm = s.block === 'contact-form' && isPartVisible(s, 'form');
     const submitContent = buttonContent(s.button || 'Prepare email', s, context);
     const submitLabel = !isPartVisible(s, 'buttonLabel') ? ` aria-label="${e(buttonLabel(s.button || 'Prepare email', s))}"` : '';
-    const form = hasForm ? `<form class="contact-fields" data-contact-email="${e(brand.email)}"${partAttributes('form', 'form', context)}>${isPartVisible(s, 'nameField') ? `<label${partAttributes('nameField', 'form', context)}>Your name<input name="name" autocomplete="name" maxlength="160" required placeholder="Alex Morgan"/></label>` : ''}${isPartVisible(s, 'emailField') ? `<label${partAttributes('emailField', 'form', context)}>Email address<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="Your email address"/></label>` : ''}${isPartVisible(s, 'messageField') ? `<label${partAttributes('messageField', 'form', context)}>What do you have in mind?<textarea name="message" rows="4" maxlength="3000" required placeholder="Tell us a little about it…"></textarea></label>` : ''}${submitContent && isPartVisible(s, 'action') ? `<button class="site-button" type="submit"${!brand.email ? ' disabled' : ''}${partAttributes('action', 'form', context)}${submitLabel}>${submitContent}</button>` : ''}${isPartVisible(s, 'footnote') ? `<p class="form-note"${partAttributes('footnote', 'form', context)}>Opens a draft in your email app. Nothing is submitted to this website.</p>` : ''}<p class="form-feedback" role="status"></p></form>` : '';
+    const form = hasForm ? `<form class="contact-fields" data-contact-email="${e(brand.email)}"${partAttributes('form', 'form', context)}>${isPartVisible(s, 'nameField') ? `<label${partAttributes('nameField', 'form', context)}>Your name<input name="name" autocomplete="name" maxlength="160" required placeholder="Alex Morgan"/></label>` : ''}${isPartVisible(s, 'emailField') ? `<label${partAttributes('emailField', 'form', context)}>Email address<input name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"/></label>` : ''}${isPartVisible(s, 'messageField') ? `<label${partAttributes('messageField', 'form', context)}>What do you have in mind?<textarea name="message" rows="4" maxlength="3000" required placeholder="Tell us a little about it…"></textarea></label>` : ''}${submitContent && isPartVisible(s, 'action') ? `<button class="site-button" type="submit"${!brand.email ? ' disabled' : ''}${partAttributes('action', 'form', context)}${submitLabel}>${submitContent}</button>` : ''}${isPartVisible(s, 'footnote') ? `<p class="form-note"${partAttributes('footnote', 'form', context)}>Opens a draft in your email app. Nothing is submitted to this website.</p>` : ''}<p class="form-feedback" role="status"></p></form>` : '';
     return `<div class="site-container contact-inner${hasForm ? '' : ' without-form'}"><div>${s.block === 'contact-simple' ? `<div class="section-heading authored-content">${contentHeading(s, context, invitation)}</div>` : `${heading(s, context)}${invitation}`}</div>${form}</div>`;
   }
   if (s.group === 'cta') {
@@ -228,6 +232,20 @@ export function themeCss(rawSpec, { pageId = HOME_PAGE_ID } = {}) {
   const contrastTokens = `--contrast-bg:${t.ink};--contrast-ink:${t.bg};--contrast-surface:color-mix(in srgb,${t.bg} 6%,${t.ink});--contrast-muted:color-mix(in srgb,${t.bg} 82%,${t.ink});--contrast-line:color-mix(in srgb,${t.bg} 24%,${t.ink});--contrast-soft:color-mix(in srgb,${t.bg} 10%,${t.ink});--contrast-accent:${t.bg};--contrast-on-accent:${t.ink};--contrast-scheme:${t.dark ? 'light' : 'dark'}`;
   return `.site{--bg:${t.bg};--surface:${t.surface};--ink:${t.ink};--muted:${t.muted};--line:${t.line};--accent:${t.accent};--on-accent:${t.onAccent};--soft:${t.soft};--radius:${radius};--section-space:${spacing};--content-width:${width};${typeTokens};${contrastTokens};${artTokens};--heading-font:${FONTS[spec.theme.font].value};--button-radius:${spec.theme.radius === 'round' ? '999px' : spec.theme.radius === 'sharp' ? '2px' : '8px'};color-scheme:${t.dark ? 'dark' : 'light'}}`;
 }
+// Classes whose absence lets the page CSS leave a rule out: block ids, expansion and manifest
+// wrapper classes, and the application family, which the interface runtime extends at run time.
+const BLOCK_CLASSES = Object.freeze({
+  names: new Set([...CATALOG.map((block) => block.id), ...EXPANSION_BLOCKS.map((entry) => `xp-${entry.behavior}`)]),
+  family: (name) => name === 'app-section' || name === 'app-interface' || name.startsWith('ui-')
+});
+/** The static site stylesheet followed by the CSS of every manifest block, in registry order. */
+export function siteStylesheet(css) {
+  return `${css}\n${BLOCK_MANIFESTS.map((manifest) => manifest.css).join('\n')}`;
+}
+/** The CSS a page with this body markup can use; callers pass the static site.css text. */
+export function pageCss(css, html) {
+  return filterCss(siteStylesheet(css), html, BLOCK_CLASSES);
+}
 export function renderBody(rawSpec, { preview = false, pageId = HOME_PAGE_ID } = {}) {
   const site = validateSpec(rawSpec);
   const spec = getPageSpec(site, pageId);
@@ -235,7 +253,7 @@ export function renderBody(rawSpec, { preview = false, pageId = HOME_PAGE_ID } =
   // NEW: Render one main landmark between the optional header and footer.
   const renderSection = (s) => {
     const tag = s.group === 'navigation' ? 'header' : s.group === 'footer' ? 'footer' : 'section';
-    const presentation = presentationFieldsFor(s.group).map((field) => ` data-${field}="${e(s.presentation[field])}"`).join('');
+    const presentation = presentationFieldsFor(s.group).map((field) => ` data-${field}="${e(s.presentation[field] ?? 'default')}"`).join('');
     const elements = elementFieldsFor(s).map((field) => ` data-element-${field.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}="${e(s.elements[field])}"`).join('');
     const application = isInterfaceBlock(s);
     const sectionLabel = application ? INTERFACE_BLOCKS.find((block) => block.id === s.block).name : GROUP_LABELS[s.group];
@@ -251,5 +269,6 @@ export function renderDocument(rawSpec, { css, script, preview = false, channel 
   const site = validateSpec(rawSpec);
   const spec = getPageSpec(site, pageId);
   const policy = `default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'sha256-${scriptHash}'; base-uri 'none'; form-action 'none'; object-src 'none'; connect-src 'none'; font-src 'none'`;
-  return `<!doctype html>\n${noticeComment(notices, originalLicense)}<html lang="${e(spec.brand.language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${e(policy)}"><meta name="referrer" content="no-referrer"><title>${e(spec.brand.name)} — ${e(spec.name)}</title><meta name="description" content="${e(spec.brand.tagline)}"><style>${css}\n${themeCss(spec)}</style></head><body${preview ? ` data-preview="true" data-channel="${e(channel)}" data-edit-mode="true"` : ''}>${renderBody(site, { preview, pageId })}<script>${script}</script></body></html>`;
+  const body = renderBody(site, { preview, pageId });
+  return `<!doctype html>\n${noticeComment(notices, originalLicense)}<html lang="${e(spec.brand.language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${e(policy)}"><meta name="referrer" content="no-referrer"><title>${e(spec.brand.name)} — ${e(spec.name)}</title><meta name="description" content="${e(spec.brand.tagline)}"><style>${pageCss(css, body)}\n${themeCss(spec)}</style></head><body${preview ? ` data-preview="true" data-channel="${e(channel)}" data-edit-mode="true"` : ''}>${body}<script>${script}</script></body></html>`;
 }

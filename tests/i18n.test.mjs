@@ -45,7 +45,7 @@ test('literal translation calls and static bindings have catalog entries', async
   const keys = new Set();
   for (const file of files) {
     const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
-    for (const match of source.matchAll(/(?<![\w])t\(\s*(['"])((?:\\.|(?!\1)(?!\r|\n)[^\\])*)\1/g)) {
+    for (const match of source.matchAll(/(?<![\w])t\(\s*(['"])((?:\\.|(?!\1)[^\\\r\n])*)\1/g)) {
       keys.add(match[2].replace(/\\(['"\\])/g, '$1'));
     }
   }

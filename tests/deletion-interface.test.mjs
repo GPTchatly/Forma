@@ -44,7 +44,7 @@ test('deleting a field control removes the input but keeps other fields function
   assert.ok(!html.includes(`id="ui-${section.id}-${removed.id}"`));
   assert.ok(!html.includes(`for="ui-${section.id}-${removed.id}"`));
   assert.ok(html.includes('type="password"'));
-  assert.ok(!html.includes('GPTchatly@gmail.com'));
+  assert.ok(!html.includes('you@example.com'));
 });
 
 test('deleting a visual field heading preserves an accessible input name', () => {

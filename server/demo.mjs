@@ -8,12 +8,33 @@ import { explicitOmissions } from './composer.mjs';
 import { demoElementChoice, demoCopyChoice } from './element-edits.mjs';
 import { demoCanvasChoice, demoCanvasLocalRequest, demoCanvasOwnsElement } from './demo-canvas.mjs';
 import { isInterfaceBlock } from '../shared/interfaces.mjs';
+import { fitFor } from '../shared/fit.mjs';
+import { RECIPES } from '../shared/design.mjs';
 const countWords = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+// Demo-only cue words for page recipes, matched as whole words; the first matching recipe wins.
+// Fixed literal expressions; none is built from the prompt.
+const recipeCues = [
+  [/\b(?:restaurant|bistro|cafe|bakery)\b/, 'local-menu'],
+  [/\b(?:conference|summit|speakers|tickets)\b/, 'event-conference'],
+  [/\b(?:workshop|course|bootcamp)\b/, 'event-workshop'],
+  [/\b(?:hotel|guesthouse|rooms|bed and breakfast)\b/, 'stay-rooms'],
+  [/\b(?:developer tool|api|sdk|changelog|integrations)\b/, 'saas-developer'],
+  [/\b(?:ai product|ai assistant|ai agent|chatbot|llm)\b/, 'ai-product']
+];
+const demoRecipe = (prompt) => recipeCues.find(([pattern]) => pattern.test(prompt))?.[1] || null;
+const recipeBlock = (recipe, group) => typeof recipe === 'string' && Object.hasOwn(RECIPES, recipe) && Object.hasOwn(RECIPES[recipe].blocks, group) ? RECIPES[recipe].blocks[group] : null;
 function requestedInterface(prompt) {
   const expanded = EXPANSION_BLOCKS.find((entry) => entry.id.startsWith('app-') && (prompt.includes(entry.id) || prompt.includes(entry.name.toLowerCase())));
   if (expanded) return expanded.id;
   if (/\b(?:landing page|marketing (?:page|site)|website about|website for (?:a |an )?(?:software|chat|dashboard|app))\b/.test(prompt) && !/\b(?:frontend|front.end|clone|login form|sign.in form)\b/.test(prompt)) return 'website';
+  // The agent cues come first, so that "artifact" and "agent inbox" are not answered by the
+  // older chat and inbox entries. Fixed literal expressions; none is built from the prompt.
   const screens = [
+    [/\bagent runs?\b/, 'app-agent-run'],
+    [/\bartifacts?\b/, 'app-agent-chat'],
+    [/\bagent inbox\b/, 'app-agent-inbox'],
+    [/\busage and limits\b/, 'app-usage'],
+    [/\bagent setup\b/, 'app-agent-setup'],
     [/\b(?:sign.?up|register|registration|create (?:an? )?account)\b/, 'app-signup'],
     [/\b(?:login|log.in|sign.in|authentication form)\b/, 'app-login'],
     [/\b(?:chatgpt|chat.?bot|chat (?:app|interface|frontend|workspace|clone)|conversational (?:assistant|interface)|messenger)\b/, 'app-chat'],
@@ -70,17 +91,32 @@ function demoInterfaceChoice(state, key, question, requestedSurface) {
     const clause = prompt.split(/[.;\n]|\band\b/).find((part) => new RegExp(`\\b(?:${ordinal}|${index + 1}(?:st|nd|rd|th)?)\\s+(?:field|item|control|input)\\b|\\b(?:field|item|control|input)\\s+${index + 1}\\b`).test(part));
     const target = clause || (selected ? prompt : '');
     if (!target) return unchanged;
-    const aliases = [['email', /\bemail\b/], ['password', /\bpassword\b/], ['textarea', /\b(?:textarea|multi.line|long text)\b/], ['checkbox', /\b(?:checkbox|toggle)\b/], ['select', /\b(?:select|dropdown|choice)\b/], ['number', /\b(?:number|numeric)\b/], ['date', /\bdate\b/], ['stat', /\b(?:stat|metric)\b/], ['chart', /\bchart\b/], ['table', /\btable\b/], ['product', /\bproduct\b/], ['thread', /\bthread\b/], ['event', /\bevent\b/], ['task', /\btask\b/], ['action', /\b(?:action|button)\b/], ['form', /\bform\b/], ['list', /\blist\b/], ['text', /\b(?:text|name)\b/]];
+    const aliases = [['email', /\bemail\b/], ['password', /\bpassword\b/], ['textarea', /\b(?:textarea|multi.line|long text)\b/], ['checkbox', /\b(?:checkbox|toggle)\b/], ['select', /\b(?:select|dropdown|choice)\b/], ['number', /\b(?:number|numeric)\b/], ['date', /\bdate\b/], ['stat', /\b(?:stat|metric)\b/], ['chart', /\bchart\b/], ['table', /\btable\b/], ['product', /\bproduct\b/], ['thread', /\bthread\b/], ['event', /\bevent\b/], ['task', /\btask\b/], ['toolcall', /\btool.?call\b/], ['citation', /\b(?:citation|cited source)\b/], ['approval', /\b(?:approval|approve)\b/], ['artifact', /\bartifact\b/], ['meter', /\b(?:meter|gauge)\b/], ['message', /\bmessage\b/], ['plan', /\bplan(?: step)?\b/], ['action', /\b(?:action|button)\b/], ['form', /\bform\b/], ['list', /\blist\b/], ['text', /\b(?:text|name)\b/]];
     return aliases.find(([type, pattern]) => Object.hasOwn(question.criteria, type) && pattern.test(target))?.[0] || unchanged;
   }
   return unchanged;
 }
-const profiles = {
+export const profiles = {
   editorial: { palette: 'porcelain', font: 'editorial', density: 'airy', radius: 'sharp', typeScale: 'dramatic', width: 'wide', hero: 'hero-editorial', features: 'features-list', about: 'about-statement', services: 'services-list', gallery: 'gallery-featured', process: 'process-timeline', contact: 'contact-simple', surface: 'plain', media: 'landscape' },
   product: { palette: 'ocean', font: 'modern', density: 'balanced', radius: 'soft', typeScale: 'balanced', width: 'standard', hero: 'hero-centered', features: 'features-bento', pricing: 'pricing-featured', surface: 'filled', media: 'landscape' },
   understated: { palette: 'mono', font: 'modern', density: 'airy', radius: 'sharp', typeScale: 'quiet', width: 'focused', hero: 'hero-centered', features: 'features-list', about: 'about-statement', services: 'services-list', gallery: 'gallery-grid', contact: 'contact-simple', surface: 'plain', media: 'square' },
   expressive: { palette: 'midnight', font: 'modern', density: 'airy', radius: 'round', typeScale: 'dramatic', width: 'wide', navigation: 'nav-floating', hero: 'hero-editorial', features: 'features-bento', gallery: 'gallery-featured', cta: 'cta-band', surface: 'outlined', media: 'portrait' },
   organic: { palette: 'sage', font: 'editorial', density: 'airy', radius: 'round', typeScale: 'balanced', width: 'standard', hero: 'hero-split', features: 'features-cards', gallery: 'gallery-grid', process: 'process-timeline', cta: 'cta-card', surface: 'filled', media: 'landscape' }
+};
+// Fixed keyword cues for explicitly requested layouts; both the pattern and the block answers read them.
+const tests = {
+  hero: [[/center/, 'hero-centered'], [/editorial hero|wide hero|oversized/, 'hero-editorial'], [/split hero/, 'hero-split']],
+  navigation: [[/floating|pill nav/, 'nav-floating'], [/minimal nav|simple nav/, 'nav-minimal']],
+  features: [[/spotlight/, 'features-spotlight'], [/bento/, 'features-bento'], [/feature cards|features in cards/, 'features-cards'], [/feature list/, 'features-list']],
+  about: [[/about statement|short about|text.led/, 'about-statement']],
+  gallery: [[/swipeable|swipe.*gallery|gallery.*carousel/, 'gallery-carousel'], [/fanned|polaroid|photo stack/, 'gallery-stack'], [/featured work|featured gallery/, 'gallery-featured'], [/triptych|three.*gallery/, 'gallery-strip'], [/gallery grid|photo gallery/, 'gallery-grid']],
+  services: [[/revealing services|reveal.*service|expandable service/, 'services-reveal'], [/service menu|service list/, 'services-list']],
+  process: [[/stacked process|stack.*process|process.*stack/, 'process-stacked'], [/timeline|vertical process/, 'process-timeline']],
+  pricing: [[/highlighted|featured.*pric/, 'pricing-featured']],
+  faq: [[/faq cards|filled faq/, 'faq-cards']],
+  contact: [[/simple contact|no form/, 'contact-simple'], [/contact form/, 'contact-form']],
+  cta: [[/cta card|closing card/, 'cta-card']],
+  footer: [[/footer columns|structured footer/, 'footer-columns']]
 };
 export async function demoEvaluate({ state, questions }) {
   const p = state.user_request.toLowerCase(), edit = state.task === 'edit', preserve = state.task !== 'create', omit = explicitOmissions(p);
@@ -92,6 +128,8 @@ export async function demoEvaluate({ state, questions }) {
   const localEdit = canvasLocal || edit && (matches(/\bicons?\b|\bcolumns?\b|\bnumbering\b|\b(?:secondary|primary) (?:button|action|link)\b|\b(?:featured|highlighted) (?:item|plan|tier)\b|\bbutton (?:style|labels?|text)\b|\b(?:card|item|content) align|\bdecorat/) || matches(/(?:title|heading|headline|body|paragraph|button).*(?::|\b(?:to|as))\s*["“]/)) && !matches(/whole (?:page|site)|overall|global|theme|palette/);
   const direction = state.chosen_direction && state.chosen_direction !== 'keep' ? state.chosen_direction : matches(/editorial|magazine|typograph/) ? 'editorial' : matches(/expressive|bold|dramatic|playful|experimental/) ? 'expressive' : matches(/understated|minimal|quiet|restrained/) ? 'understated' : matches(/organic|wellness|calm|botanical|nature|coastal/) ? 'organic' : application || matches(/saas|software|product|technical|clear benefits/) ? 'product' : 'editorial';
   const profile = profiles[direction];
+  // A cue word picks a page recipe for a website; on create the demo also includes its groups.
+  const cueRecipe = edit || application ? null : demoRecipe(p);
   const defaultTheme = (field) => edit ? 'keep' : profile[field];
   // Build one consistent local order, then answer every pair from it. Merely
   // reversing the named pair creates cycles when a move crosses other sections.
@@ -134,26 +172,28 @@ export async function demoEvaluate({ state, questions }) {
       if (group === 'hero' && !preserve) value = omit.has(group) ? 'omit' : 'include';
       if (group === 'hero' && isInterfaceBlock(requestedSurface) && !omit.has(group)) value = 'include';
       if (application && !preserve && group !== 'hero') value = !omit.has(group) && explicitlyAdded ? 'include' : 'omit';
+      if (cueRecipe && !preserve && RECIPES[cueRecipe].order.includes(group) && !omit.has(group)) value = 'include';
     }
+    if (key === 'recipe') value = cueRecipe && Object.hasOwn(q.criteria, cueRecipe) ? cueRecipe : preserve ? 'keep' : 'none';
+    // The words bold and warm alone already steer direction and palette; a voice needs the word beside them.
+    if (key === 'copy_voice') value = matches(/\b(?:warm|warmer|friendly|friendlier)\s+(?:tone of voice|voice|copy)\b/) ? 'warm' : matches(/\b(?:bold|bolder)\s+(?:tone of voice|voice|copy)\b/) ? 'bold' : preserve ? 'keep' : 'plain';
     if (key.startsWith('block_')) {
       const group = state.selected_sections?.find((section) => section.id === key.slice(6))?.group || key.slice(6);
       if (!edit || !Object.hasOwn(q.criteria, 'keep')) value = profile[group] || Object.keys(q.criteria)[0];
-      const tests = {
-        hero: [[/center/, 'hero-centered'], [/editorial hero|wide hero|oversized/, 'hero-editorial'], [/split hero/, 'hero-split']],
-        navigation: [[/floating|pill nav/, 'nav-floating'], [/minimal nav|simple nav/, 'nav-minimal']],
-        features: [[/spotlight/, 'features-spotlight'], [/bento/, 'features-bento'], [/feature cards|features in cards/, 'features-cards'], [/feature list/, 'features-list']],
-        about: [[/about statement|short about|text.led/, 'about-statement']],
-        gallery: [[/swipeable|swipe.*gallery|gallery.*carousel/, 'gallery-carousel'], [/fanned|polaroid|photo stack/, 'gallery-stack'], [/featured work|featured gallery/, 'gallery-featured'], [/triptych|three.*gallery/, 'gallery-strip'], [/gallery grid|photo gallery/, 'gallery-grid']],
-        services: [[/revealing services|reveal.*service|expandable service/, 'services-reveal'], [/service menu|service list/, 'services-list']],
-        process: [[/stacked process|stack.*process|process.*stack/, 'process-stacked'], [/timeline|vertical process/, 'process-timeline']],
-        pricing: [[/highlighted|featured.*pric/, 'pricing-featured']],
-        faq: [[/faq cards|filled faq/, 'faq-cards']],
-        contact: [[/simple contact|no form/, 'contact-simple'], [/contact form/, 'contact-form']],
-        cta: [[/cta card|closing card/, 'cta-card']],
-        footer: [[/footer columns|structured footer/, 'footer-columns']]
-      };
+      // The chosen recipe's block (the composer pins it) unless a cue word or a named block applies.
+      const suggested = recipeBlock(state.chosen_recipe, group);
+      if (suggested && Object.hasOwn(q.criteria, suggested) && (!edit || !Object.hasOwn(q.criteria, 'keep'))) value = suggested;
       for (const [regex, variant] of tests[group] || []) if (regex.test(p)) { value = variant; break; }
       if (group === 'hero' && application) value = requestedSurface && requestedSurface !== 'website' ? requestedSurface : isInterfaceBlock(state.chosen_surface) ? state.chosen_surface : currentApplication?.block || 'app-workspace';
+    }
+    if (key.startsWith('pattern_')) {
+      // Only an explicit cue picks a pattern; the direction profile never does. A named block
+      // wins over a cue word, as it does in the block answer below.
+      const group = key.slice(8);
+      const named = EXPANSION_BLOCKS.find((entry) => entry.group === group && !isInterfaceBlock(entry.id) && (p.includes(entry.name.toLowerCase()) || p.includes(entry.id)));
+      const cued = named?.id || (tests[group] || []).find(([regex]) => regex.test(p))?.[1];
+      const pattern = fitFor(cued)?.pattern;
+      if (pattern && Object.hasOwn(q.criteria, pattern)) value = pattern;
     }
     if (key.startsWith('presentation_')) {
       const [, sectionId, field] = key.split('_');
@@ -201,6 +241,8 @@ export async function demoEvaluate({ state, questions }) {
     if (key.startsWith('include_') && ['testimonials', 'team', 'logos', 'stats'].includes(key.slice(8)) && new RegExp('\\b' + key.slice(8) + '\\b').test(p)) value = 'include';
     if (key === 'repeat_family') value = GROUPS.find((group) => !['navigation', 'hero', 'footer'].includes(group) && new RegExp('(?:another|second|extra|two)\\s+(?:\\w+\\s+)?' + group).test(p)) || 'none';
     if (key === 'reusable_element') value = Object.entries(WIDGETS).find(([id, entry]) => p.includes(entry.name.toLowerCase()) || p.includes(id + ' element'))?.[0] || 'keep';
+    // A proposed element is accepted only when the prompt asks for suggested elements.
+    if (key.startsWith('propose_element_')) value = matches(/\bsuggest(?:ed)? (?:elements?|additions?)\b/) ? Object.keys(q.criteria).find((option) => !['none', 'keep'].includes(option)) || 'none' : 'none';
     if (key.startsWith('block_')) {
       const explicit = EXPANSION_BLOCKS.find((entry) => Object.hasOwn(q.criteria, entry.id) && (p.includes(entry.name.toLowerCase()) || p.includes(entry.id)));
       if (explicit) value = explicit.id;

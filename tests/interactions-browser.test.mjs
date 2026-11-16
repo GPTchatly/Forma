@@ -1,5 +1,5 @@
 /** Real Chromium integration, isolated local storage and standalone file exports.
- * No provider or external component request is made. */
+ * No provider, Redis, Turnstile or external component request is made. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
@@ -74,7 +74,7 @@ test('native interactions work in sandboxed Inspect/Interact, library samples an
   assert.deepEqual(await page.locator('#library-list [data-add-block]').evaluateAll(nodes=>nodes.map(node=>node.dataset.addBlock)),CATALOG.filter(block=>block.source.includes('Watermelon')||block.capabilities.references?.includes('watermelon')).map(block=>block.id));
   await page.locator('#library-search').fill('');
   await page.locator('[data-library-filter="all"]').click();
-  assert.equal(await page.locator('#library-list [data-add-block]').count(),105);
+  assert.equal(await page.locator('#library-list [data-add-block]').count(),CATALOG.length);
   assert.ok(await page.locator('#library-list [data-add-block="features-spotlight"]').isVisible(),'Initial adapted interactions remain discoverable');
   await page.locator('[data-left-tab="brief"]').click();
   await page.locator('[data-left-tab="library"]').click();

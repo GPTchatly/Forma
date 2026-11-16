@@ -188,6 +188,8 @@ select:disabled{opacity:.5;cursor:not-allowed}
 .feedback{font-size:var(--fs-sm);line-height:1.6;margin:10px 0;color:var(--ok);font-weight:500}
 .feedback:empty{display:none}
 .feedback.error{color:var(--danger)}
+.human-widget{margin:12px 0;min-width:0}
+.human-widget:empty{display:none}
 
 /* Custom disclosure marks share one stroke weight with the icon set. */
 details>summary{list-style:none;cursor:pointer}
@@ -557,6 +559,8 @@ html[data-theme="light"] .draft-note.reviewed{border-color:rgba(43,122,64,.45)}
 .decision-option{display:flex;justify-content:space-between;gap:10px;font-size:var(--fs-sm);color:var(--text-3);margin-top:6px;overflow-wrap:anywhere}
 .decision-option strong{font-weight:500;color:var(--text-2)}
 .decision-option>span:last-child{font-family:var(--font-mono);font-size:var(--fs-xs)}
+.alternative-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.alternative-layout small{font:500 var(--fs-xs)/1.4 var(--font-mono);color:var(--text-3)}
 
 /* ---------- Dialogs ---------- */
 .modal{border:1px solid var(--line-strong);border-radius:var(--radius-lg);padding:24px;max-width:480px;width:calc(100% - 32px);max-height:90dvh;overflow:auto;background:var(--bg-1);color:var(--text-1);box-shadow:var(--shadow-2)}

@@ -1,3 +1,25 @@
+# Forma 0.3.0
+
+This release publishes the hosted edition beside the native local editor. The
+hosted edition runs on Vercel behind Cloudflare with an Upstash Redis REST
+database: signed guest sessions, CSRF checks, edge-secret verification, rolling
+rate limits, expiring concurrency leases, an optional operator-funded allowance
+of 10 JEV calls per IP per UTC day with a global budget, bring-your-own-key
+verification, and an optional Cloudflare Turnstile check before the first key
+test or live build. Hosted projects stay in the visitor's browser. See
+docs/PRODUCTION.md for deployment and SECURITY.md for the threat model.
+
+The catalog grows to 132 MIT-licensed components across 16 section families,
+with design-reference application screens and a wider range of site types. The
+editor's sample canvas has a refreshed presentation, and the request box shows
+an example brief as its placeholder.
+
+The native local runtime still needs no package installation. Hosted builds use
+one pinned dependency (Zod 4.6.7) through `npm ci --ignore-scripts` and
+`npm run build`. Node.js 22 (22.23.3 or newer) or 24 (24.21.0 or newer) is
+required. No credentials are included; configure secrets only in your hosting
+provider's server environment, starting from `.env.hosted.example`.
+
 # Forma 0.2.0
 
 This release contains the complete native local editor, 105 blocks, 24 reusable

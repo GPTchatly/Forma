@@ -1,5 +1,6 @@
 /** Native authored compositions. References inform interaction design; no upstream
  * executable source is bundled by this registry. IDs never select remote code. */
+import { BLOCK_MANIFESTS, MANIFEST_BY_ID } from './blocks.mjs';
 const block = (id, group, name, behavior, description, reference) => ({ id, group, name, behavior, description, reference, source: 'Forma original · MIT', license: 'MIT' });
 export const EXPANSION_BLOCKS = [
   block('nav-dock', 'navigation', 'Navigation dock', 'dock', 'A compact sticky dock with named destinations and keyboard focus.', 'watermelon'),
@@ -61,12 +62,15 @@ export const EXPANSION_BLOCKS = [
   block('faq-sidebar', 'faq', 'Answers with an index', 'faq-sidebar', 'An indexed question list links to accessible answer disclosures.', 'animate'),
   block('footer-sitemap', 'footer', 'Sitemap footer', 'sitemap', 'Page and section destinations with a prominent brand introduction.'),
   block('footer-contact', 'footer', 'Contact footer', 'contact-footer', 'Public contact, editable closing copy and a clear back-to-top action.'),
-  block('footer-wordmark', 'footer', 'Large wordmark footer', 'wordmark-footer', 'An oversized brand wordmark closes the page with readable destinations.')
+  block('footer-wordmark', 'footer', 'Large wordmark footer', 'wordmark-footer', 'An oversized brand wordmark closes the page with readable destinations.'),
+  // Blocks defined as manifests (shared/blocks.mjs) follow the hand-listed entries.
+  ...BLOCK_MANIFESTS.map((manifest) => block(manifest.id, manifest.group, manifest.name, manifest.behavior, manifest.description, manifest.reference))
 ];
 export const EXPANSION_BY_ID = Object.fromEntries(EXPANSION_BLOCKS.map((entry) => [entry.id, entry]));
 export const EXPANSION_APP_BLOCKS = EXPANSION_BLOCKS.filter((entry) => entry.id.startsWith('app-'));
 export const ANCHORED_GROUPS = ['navigation', 'hero', 'footer'];
 export const EVIDENCE_GROUPS = ['testimonials', 'team', 'logos', 'stats'];
 export function expansionCapabilities(entry) {
-  return { behavior: entry.behavior, itemLimit: 8, media: ['gallery', 'team', 'logos', 'features'].includes(entry.group) ? 'item' : ['hero', 'cta'].includes(entry.group) ? 'section' : 'none', fallback: 'All authored content is readable without decorative motion.', sources: [], references: entry.reference ? [entry.reference] : [], interactive: ['dock', 'mega', 'fullscreen-menu', 'shrink', 'progress-nav', 'tour', 'layers', 'tabs', 'expand-grid', 'selector', 'milestones', 'thumbnails', 'compare', 'lightbox', 'filter', 'albums', 'image-accordion', 'quote-slider', 'directory', 'marquee', 'billing', 'inquiry', 'faq-search', 'faq-groups'].includes(entry.behavior) || entry.id.startsWith('app-') };
+  const manifest = MANIFEST_BY_ID[entry.id];
+  return { behavior: entry.behavior, itemLimit: 8, media: manifest ? manifest.media : ['gallery', 'team', 'logos', 'features'].includes(entry.group) ? 'item' : ['hero', 'cta'].includes(entry.group) ? 'section' : 'none', fallback: 'All authored content is readable without decorative motion.', sources: [], references: entry.reference ? [entry.reference] : [], interactive: manifest ? manifest.interactive : ['dock', 'mega', 'fullscreen-menu', 'shrink', 'progress-nav', 'tour', 'layers', 'tabs', 'expand-grid', 'selector', 'milestones', 'thumbnails', 'compare', 'lightbox', 'filter', 'albums', 'image-accordion', 'quote-slider', 'directory', 'marquee', 'billing', 'inquiry', 'faq-search', 'faq-groups'].includes(entry.behavior) || entry.id.startsWith('app-') };
 }

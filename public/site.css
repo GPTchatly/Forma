@@ -66,6 +66,22 @@
    overriding the requested ratio. The decorative label remains in normal use. */
 .site-section[data-media]:not([data-media="default"]) :is(.hero-visual,.about-visual,.gallery-visual)>:is(.art,.site-image){position:absolute;inset:0;width:100%;height:100%;min-height:0;object-fit:cover}
 
+/* Optional section backdrops and heading layouts. Only non-default values are styled, so a
+   section without the setting (data-backdrop="default", data-intro="default") looks as before.
+   Patterns are drawn from the section's own palette tokens, so soft and contrast tones keep them
+   faint and legible; application screens never get a backdrop. */
+.site-section[data-backdrop="grid"]:not(.app-section){background-image:linear-gradient(color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--ink) 7%,transparent) 1px,transparent 1px);background-size:40px 40px;background-position:center top}
+.site-section[data-backdrop="dots"]:not(.app-section){background-image:radial-gradient(circle,color-mix(in srgb,var(--ink) 16%,transparent) 1.2px,transparent 1.8px);background-size:22px 22px}
+.site-section[data-backdrop="mesh"]:not(.app-section){background-image:radial-gradient(60% 70% at 12% 18%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%),radial-gradient(55% 65% at 88% 82%,color-mix(in srgb,var(--accent) 11%,transparent),transparent 72%),radial-gradient(40% 50% at 70% 10%,color-mix(in srgb,var(--line) 60%,transparent),transparent 70%)}
+.site-section[data-backdrop="noise"]:not(.app-section){background-image:repeating-linear-gradient(45deg,color-mix(in srgb,var(--ink) 5%,transparent) 0 1px,transparent 1px 4px),repeating-linear-gradient(-45deg,color-mix(in srgb,var(--ink) 3%,transparent) 0 1px,transparent 1px 5px)}
+.site-section[data-intro="ruled"] .section-heading{padding-top:20px;border-top:1px solid var(--line)}
+.site-section[data-intro="ruled"] .section-heading h2{font-size:clamp(1.6rem,2.8vw,2.3rem)}
+@media(min-width:801px){
+  .site-section[data-intro="split"] .section-heading{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:clamp(32px,5vw,72px);align-items:end;max-width:none}
+  .site-section[data-intro="split"] .section-heading>*{grid-column:1;min-width:0}
+  .site-section[data-intro="split"] .section-heading>.section-description{grid-column:2;grid-row:1/span 2;align-self:end;margin:0}
+}
+
 /* Explicit image geometry belongs to its existing component slot. Percentage
    widths remain bounded by that slot at every viewport size. */
 .site-section[data-media] :is(.hero-visual,.about-visual,.gallery-visual):is(.image-sized,[data-image-resizing="true"]){width:var(--image-width,100%);min-width:0;max-width:100%}
@@ -435,6 +451,14 @@ body[data-resizing-image="true"],body[data-resizing-image="true"] *{cursor:nwse-
 .ui-local-dialog{width:min(520px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow:auto;padding:28px;border:1px solid var(--line);border-radius:var(--ui-radius);background:var(--surface);color:var(--ink);box-shadow:0 25px 80px #0004}
 .ui-local-dialog::backdrop{background:#0006;backdrop-filter:blur(3px)}
 .ui-local-dialog .ui-form-footer{justify-content:flex-end;flex-direction:row}.ui-local-dialog .ui-form-footer>button{padding:10px 16px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}.ui-local-dialog .ui-form-footer>button[type="submit"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.ui-agent-module{display:grid;align-content:start;gap:4px}.ui-agent-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}.ui-agent-head .ui-agent-title{margin:0;font-size:1em;font-weight:620;line-height:1.35;letter-spacing:0;overflow-wrap:anywhere}.ui-agent-title{font-weight:620;overflow-wrap:anywhere}
+.ui-agent-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:30px;height:30px;border:1px solid var(--line);border-radius:50%;background:var(--soft);color:var(--accent)}.ui-agent-meta{display:inline-block;max-width:100%;padding:2px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.78em;line-height:1.5;overflow-wrap:anywhere}
+.ui-agent-text{max-width:none;margin:8px 0 0;color:var(--muted);line-height:1.6;white-space:pre-line;overflow-wrap:anywhere}
+.ui-agent-call>summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0;cursor:pointer}.ui-agent-call>summary::after{content:"+";margin-inline-start:auto;color:var(--muted)}.ui-agent-call[open]>summary::after{content:"\2212"}
+.ui-agent-excerpt{margin:0;padding:2px 0 2px 14px;border-left:3px solid var(--accent);white-space:pre-line;overflow-wrap:anywhere}.ui-agent-source{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;max-width:none;margin:10px 0 0;color:var(--muted);font-size:.9em}.ui-agent-source .ui-agent-title{font-style:normal;color:var(--ink)}
+.ui-agent-code{max-width:100%;margin:10px 0 0;padding:14px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink)}.ui-agent-code code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85em;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.ui-agent-gauge{display:flex;align-items:center;gap:12px;min-width:0;margin:10px 0 0}.ui-agent-gauge meter{flex:1 1 auto;width:100%;min-width:0;height:12px}.ui-agent-value{flex:none;max-width:50%;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.ui-agent-approval .xp-control{margin-top:14px}.ui-agent-approval .xp-status{margin:10px 0 0;min-height:1.6em}
 
 @media(max-width:1050px){
   .ui-workspace,.ui-chat{grid-template-columns:195px minmax(0,1fr)}
@@ -587,6 +611,12 @@ body[data-preview="true"][data-edit-mode="true"] :is(.site-button,.text-link,.it
 .xp-compare-images{display:grid;grid-template-columns:1fr 1fr;gap:16px}.xp-compare-images figure{min-width:0;margin:0}.xp-compare-images figcaption{padding:12px 0;font-size:.9rem}.xp-compare label{margin-top:24px}.xp-compare[data-xp-compare-enhanced="true"] .xp-compare-images{position:relative;display:block;overflow:hidden}.xp-compare[data-xp-compare-enhanced="true"] figure{width:100%}.xp-compare[data-xp-compare-enhanced="true"] figure:first-child{position:absolute;inset:0;z-index:1;clip-path:inset(0 calc(100% - var(--xp-compare-position,50%)) 0 0)}
 .xp-quote blockquote{font-family:var(--heading-font);font-size:clamp(1.3rem,2.4vw,2rem);line-height:1.5;margin:0 0 32px;white-space:pre-line}.xp-quote figcaption{display:grid;gap:6px}.xp-quote .xp-meta{margin:0}.xp-quote-grid .xp-quote:first-child:last-child{grid-column:1/-1}.xp-quote .xp-quote-grid{grid-template-columns:2fr 1fr 1fr}.xp-quote-grid .xp-quote:first-child{background:var(--soft)}
 .xp-logo-rail{display:flex;gap:24px;overflow-x:auto;align-items:center;padding:20px 0}.xp-logo-rail .xp-card{flex:0 0 200px;text-align:center;border:0;padding:16px;background:transparent}.xp-logo-rail .xp-image{aspect-ratio:2/1;background:transparent}.xp-logo-rail h3{font-size:1.15rem}.xp-logo-rail p{font-size:.8rem}.xp-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}.xp-stats>div{padding:24px 0;border-top:1px solid var(--line)}.xp-stats dt{font-weight:600}.xp-stats dd{margin:0}.xp-stats .xp-price{font-size:clamp(2rem,5vw,4rem)}
+/* Columns for the quotation, team, logo and statistics collections. `default` matches no rule
+   here, so each block keeps its base layout; narrow screens reduce --element-columns and stack. */
+.site-section.quotes-grid[data-element-columns]:not([data-element-columns="default"]) .xp-quote-grid{grid-template-columns:repeat(var(--element-columns),minmax(0,1fr))}
+.site-section.team-grid[data-element-columns]:not([data-element-columns="default"]) .xp-collection,.site-section.team-directory[data-element-columns]:not([data-element-columns="default"]) .xp-collection{grid-template-columns:repeat(var(--element-columns),minmax(0,1fr))}
+.site-section.logos-wall[data-element-columns]:not([data-element-columns="default"]) .xp-logo-rail{display:grid;grid-template-columns:repeat(var(--element-columns),minmax(0,1fr));overflow:visible}
+.site-section.stats-band[data-element-columns]:not([data-element-columns="default"]) .xp-stats{grid-template-columns:repeat(var(--element-columns),minmax(0,1fr))}
 .xp-period-prices{display:flex;flex-direction:column;gap:8px;margin:24px 0;font-size:1.8rem}.xp-period-prices [data-xp-annual]:before{content:'Annual: ';font-size:.8rem}.xp-period-prices [data-xp-monthly]:before{content:'Monthly: ';font-size:.8rem}.xp[data-xp-enhanced="true"][data-xp-period="monthly"] [data-xp-annual],.xp[data-xp-enhanced="true"][data-xp-period="annual"] [data-xp-monthly]{display:none}.xp-offer .xp-plans{grid-template-columns:2fr 1fr 1fr}.xp-offer .xp-plan:first-child{background:var(--soft);padding:40px}
 .xp-table-wrap{overflow:auto;scrollbar-color:var(--accent) var(--soft)}.xp table{width:100%;border-collapse:collapse;text-align:left}.xp caption{text-align:left;font-weight:600;margin-bottom:20px}.xp :is(th,td){border-bottom:1px solid var(--line);padding:18px;vertical-align:top;min-width:120px;white-space:pre-line;overflow-wrap:anywhere}.xp th{background:var(--soft);font-weight:600}
 .xp-wizard{max-width:720px}.xp-step-index{display:flex;gap:24px;padding:0;list-style:none;margin:24px 0 40px}.xp-step-index li{flex:1;border-top:3px solid var(--line);padding-top:12px;color:var(--muted)}.xp-step-index li[aria-current="step"]{color:var(--ink);border-color:var(--accent)}.xp-wizard>[data-xp-step]{padding:24px 0;border-top:1px solid var(--line)}.xp-wizard label{margin:20px 0}.xp-contacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}

@@ -291,5 +291,8 @@
   "{width} px · {scale}%",
   "Past projects",
   "Past projects.",
-  "Saved in your browser’s IndexedDB and local workspace. Reopen a previous project or start a new one."
+  "Saved in your browser’s IndexedDB and local workspace. Reopen a previous project or start a new one.",
+  "Alternative layouts",
+  "by fit rules",
+  "This layout is no longer available for this section."
 ]

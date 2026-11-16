@@ -176,7 +176,7 @@ test('media treatment is not reported as changed when the chosen block does not 
 
 test('content-shape context excludes full bodies, item text, destinations and image payloads', async () => {
   const r = request('Make a coherent expressive redesign.');
-  r.spec.brand.email = 'GPTchatly@gmail.com';
+  r.spec.brand.email = 'excluded-contact@example.com';
   r.spec.brand.href = 'https://private.example/brand-secret';
   const hero = r.spec.sections.find((s) => s.group === 'hero');
   hero.body = 'NEVER-SEND-THIS-FULL-BODY'; hero.href = 'https://private.example/section-secret'; hero.image = PNG_IMAGE;

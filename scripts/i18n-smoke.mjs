@@ -67,9 +67,9 @@ try {
     ok(`${locale}: preview editor toolbar translated`, await frame.locator('.editor-selection-tools').getAttribute('aria-label') === translate('Arrange selected content', {}, locale) && await frame.locator('.editor-selection-tools').getAttribute('lang') === locale && await frame.locator('html').getAttribute('lang') === 'en');
   }
   await page.locator('[data-inspector-tab="content"]').click();
-  await page.locator('#field-brand-email').evaluate((node) => { node.value = 'GPTchatly@gmail.com'; });
+  await page.locator('#field-brand-email').evaluate((node) => { node.value = 'draft@example.test'; });
   await page.locator('#app-language').selectOption('sv');
-  ok('Pending inspector fields survive rerendering without committing', await page.locator('#field-brand-email').inputValue() === 'GPTchatly@gmail.com' && await page.locator('#source-code').textContent() === originalSource);
+  ok('Pending inspector fields survive rerendering without committing', await page.locator('#field-brand-email').inputValue() === 'draft@example.test' && await page.locator('#source-code').textContent() === originalSource);
   ok('Language switching does not save projects or contact a model', mutations.length === 0);
   await page.reload(); await frame.locator('h1').waitFor();
   ok('Saved language wins over browser language after reload', await page.locator('html').getAttribute('lang') === 'sv');
