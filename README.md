@@ -1,4 +1,4 @@
-# Forma — JEV Site Studio
+# Forma — JEV-assisted superfast HTML website builder 
 
 Free (with limits) hosted <a href="https://forma.gptchatly.com/">Forma Editor</a>
 
